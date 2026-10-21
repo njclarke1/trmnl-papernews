@@ -1,0 +1,33 @@
+# Portainer: Stacks → Add stack → Repository (this public repo). Re-pull image OFF on redeploy.
+# Secrets (GUARDIAN_API_KEY) only in the stack's environment variables, never in git.
+services:
+  api:
+    build: .
+    pull_policy: build
+    image: trmnl-frontpage-api:${STACK_TAG:-latest}
+    container_name: ${CONTAINER_NAME:-trmnl-frontpage-api}
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-3461}:8000"
+    volumes:
+      - frontpage-data:/data          # editions, last-good copies, processed images, OCR cache
+    environment:
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://192.168.68.111:3461}
+      - GUARDIAN_API_KEY=${GUARDIAN_API_KEY:-}
+      - ROTATION=${ROTATION:-guardian,bbc,ft,times,indy,i,telegraph}
+      - SLOT_MINUTES=${SLOT_MINUTES:-20}
+      - AM_LOCK=${AM_LOCK:-06:00}
+      - PM_LOCK=${PM_LOCK:-16:00}
+      - PIN=${PIN:-}
+      - PLACE=${PLACE:-Bristol}
+      - WEATHER_LAT=${WEATHER_LAT:-51.4545}
+      - WEATHER_LON=${WEATHER_LON:--2.5879}
+      - WEATHER_LABEL=${WEATHER_LABEL:-Bristol}
+      - IMAGE_MODE=${IMAGE_MODE:-halftone}
+      - FT_TINT=${FT_TINT:-0}
+      - OCR_ENABLED=${OCR_ENABLED:-1}
+      - DEMO_MODE=${DEMO_MODE:-0}
+      - TZ=Europe/London
+
+volumes:
+  frontpage-data:

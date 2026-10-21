@@ -1,0 +1,38 @@
+<!-- Phase 0 test pattern: paste as a LaraPaper recipe (no polling). On the Kindle, check:
+     1. the 2px frame touches all four screen edges (nothing cropped, no white margin)
+     2. the 1px line pairs in the boxes look like crisp separate lines, not grey mush or moiré
+     3. the circle is round (not an ellipse)  ⇒  no rescaling anywhere in the chain -->
+<style>
+html,body{margin:0!important;padding:0!important;background:#fff}
+.t{position:fixed;top:0;left:0;width:1236px;height:1648px;box-sizing:border-box;border:2px solid #000;
+   font:700 40px/1.2 sans-serif;color:#000}
+.t .c{position:absolute;font-size:28px}
+.t .box{position:absolute;width:300px;height:300px;border:2px solid #000}
+.t .h{background:repeating-linear-gradient(0deg,#000 0 1px,#fff 1px 2px)}
+.t .v{background:repeating-linear-gradient(90deg,#000 0 1px,#fff 1px 2px)}
+.t .g{background:repeating-linear-gradient(90deg,#000 0 1px,transparent 1px 4px),repeating-linear-gradient(0deg,#000 0 1px,#fff 1px 4px)}
+.t .ring{position:absolute;left:418px;top:1024px;width:400px;height:400px;border:3px solid #000;border-radius:50%;box-sizing:border-box}
+.t .ramp{position:absolute;left:100px;right:100px;top:1500px;height:60px;display:flex}
+.t .ramp i{flex:1}
+</style>
+<div class="t">
+  <div class="c" style="left:12px;top:8px">TOP LEFT</div><div class="c" style="right:12px;top:8px">TOP RIGHT</div>
+  <div class="c" style="left:12px;bottom:8px">BOTTOM LEFT</div><div class="c" style="right:12px;bottom:8px">BOTTOM RIGHT</div>
+  <div style="position:absolute;top:120px;width:100%;text-align:center">1236 × 1648 · portrait</div>
+  <div style="position:absolute;top:180px;width:100%;text-align:center;font-size:26px;font-weight:400">
+    If the frame is cut off, the circle is oval, or the line boxes look grey, the image is being rescaled.</div>
+  <div class="box h" style="left:100px;top:300px"></div>
+  <div class="box v" style="left:468px;top:300px"></div>
+  <div class="box g" style="left:836px;top:300px"></div>
+  <div style="position:absolute;top:620px;left:100px;font-size:24px;font-weight:400">1 px horizontal · 1 px vertical · 4 px grid</div>
+  <div style="position:absolute;top:700px;left:100px;right:100px;font:400 30px/40px serif">
+    Body text at the plugin's real size (30/40 px). The quick brown fox jumps over the lazy dog. 0123456789 £€ — “quotes”.</div>
+  <div class="ring"></div>
+  <div class="ramp">
+    <i style="background:#000"></i><i style="background:#111"></i><i style="background:#222"></i><i style="background:#333"></i>
+    <i style="background:#444"></i><i style="background:#555"></i><i style="background:#666"></i><i style="background:#777"></i>
+    <i style="background:#888"></i><i style="background:#999"></i><i style="background:#aaa"></i><i style="background:#bbb"></i>
+    <i style="background:#ccc"></i><i style="background:#ddd"></i><i style="background:#eee"></i><i style="background:#fff;outline:1px solid #000"></i>
+  </div>
+  <div style="position:absolute;top:1570px;width:100%;text-align:center;font-size:22px;font-weight:400">16 grey steps: all 16 should be distinct</div>
+</div>

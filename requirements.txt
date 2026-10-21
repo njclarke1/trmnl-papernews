@@ -1,0 +1,12 @@
+flask==3.1.3
+gunicorn==26.2.0
+requests==2.34.2
+beautifulsoup4==4.15.0
+lxml==6.1.3
+trafilatura==2.3.1
+pyphen==0.18.1
+pillow==12.3.0
+numpy==2.5.3
+qrcode==8.2
+pytesseract==0.3.13
+pyspellchecker==0.9.1

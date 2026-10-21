@@ -1,0 +1,22 @@
+# secrets
+.env
+*.env
+!.env.example
+
+# runtime data (editions, processed news photos, OCR cache) — never in git
+data/
+out/
+fp-probe*/
+*.tgz
+
+# real publisher wordmarks are trademarks: cached on the NAS volume only
+app/static/wordmarks/
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# local notes
+HANDOFF.md

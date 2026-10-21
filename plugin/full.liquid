@@ -1,0 +1,280 @@
+<!-- trmnl-frontpage · full.liquid · 1236×1648 portrait, 16 greys (Kindle PW 11th gen)
+     Polls PUBLIC_BASE_URL/edition. All strings arrive pre-escaped and pre-formatted from the sidecar.
+     After any change here, re-paste into the LaraPaper plugin (it does not pull from GitHub). -->
+<style>
+@font-face{font-family:'Playfair Display';src:url('{{ asset_base }}/static/fonts/PlayfairDisplay-Variable.ttf');font-weight:400 900}
+@font-face{font-family:'Playfair Display';font-style:italic;src:url('{{ asset_base }}/static/fonts/PlayfairDisplay-Italic-Variable.ttf');font-weight:400 900}
+@font-face{font-family:'Source Serif 4';src:url('{{ asset_base }}/static/fonts/SourceSerif4-Variable.ttf');font-weight:200 900}
+@font-face{font-family:'Source Serif 4';font-style:italic;src:url('{{ asset_base }}/static/fonts/SourceSerif4-Italic-Variable.ttf');font-weight:200 900}
+@font-face{font-family:'Libre Franklin';src:url('{{ asset_base }}/static/fonts/LibreFranklin-Variable.ttf');font-weight:100 900}
+@font-face{font-family:'UnifrakturMaguntia';src:url('{{ asset_base }}/static/fonts/UnifrakturMaguntia-Book.ttf')}
+
+/* page-offset fix (rugby lesson): LaraPaper wraps markup in its own page */
+html,body{margin:0!important;padding:0!important;background:#fff}
+:root{--ink:#000;--paper:#fff;--hair:1.5px;--rule:2px;--bar:6px}
+.fp *{box-sizing:border-box;margin:0;padding:0}
+.fp{box-sizing:border-box;position:fixed;top:0;left:0;width:1236px;height:1648px;background:var(--paper);color:var(--ink);padding:32px 40px 24px;
+  display:flex;flex-direction:column;overflow:hidden;font-kerning:normal;font-variant-ligatures:common-ligatures;
+  text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}
+.fp.tint{--paper:#eeeeee}
+.fp .nw{white-space:nowrap}
+.fp .lbl{font-family:'Libre Franklin',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.2em}
+
+.fp .folio{flex:0 0 40px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:var(--rule) solid var(--ink);
+  font:600 22px/24px 'Libre Franklin',sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.fp .mast{flex:0 0 184px;display:flex;align-items:center;gap:24px;padding:16px 0}
+.fp .ear{flex:0 0 224px;height:152px;border:var(--rule) solid var(--ink);display:flex}
+.fp .ear.wx{padding:16px;gap:16px;align-items:center}
+.fp .ear.wx svg{flex:0 0 56px;height:56px}
+.fp .wx-t{font:800 56px/1 'Libre Franklin',sans-serif;letter-spacing:-.03em}
+.fp .wx-l{font-size:14px;margin-bottom:8px}
+.fp .wx-s{font:400 17px/22px 'Libre Franklin',sans-serif;margin-top:8px}
+.fp .ear.qr{flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.fp .ear.qr img{width:104px;height:104px;image-rendering:pixelated}
+.fp .ear.qr .lbl{font-size:13px}
+.fp .ear.blank{border-color:transparent}
+.fp .nameplate{flex:1 1 auto;min-width:0;height:152px;display:flex;flex-direction:column;align-items:center;justify-content:center;white-space:nowrap}
+.fp .np-name{display:inline-block}
+.fp .np-gu .np-name{font:900 116px/1 'Playfair Display',serif;letter-spacing:-.025em}
+.fp .np-bbc .np-name{font:800 96px/1 'Libre Franklin',sans-serif;letter-spacing:.02em}
+.fp .np-ft .np-name{font:700 72px/1 'Playfair Display',serif;letter-spacing:.07em}
+.fp .np-tm .np-name{font:700 84px/1 'Playfair Display',serif;letter-spacing:.06em}
+.fp .np-in .np-name{font:600 66px/1 'Source Serif 4',serif;letter-spacing:.14em}
+.fp .np-i .np-name{font:900 156px/.78 'Libre Franklin',sans-serif;letter-spacing:-.04em}
+.fp .np-tg .np-name{font:400 92px/1 'UnifrakturMaguntia',serif}
+.fp .np-sub{font:700 16px/1 'Libre Franklin',sans-serif;letter-spacing:.32em;margin-top:12px}
+.fp .oxford{flex:0 0 16px;border-top:var(--bar) solid var(--ink);border-bottom:var(--rule) solid var(--ink);height:16px}
+
+.fp .lead{flex:0 0 auto;padding-top:24px}
+.fp .kicker{display:flex;align-items:center;gap:16px;height:32px;margin-bottom:16px;font-size:21px}
+.fp .chip{background:var(--ink);color:var(--paper);padding:6px 12px 5px;line-height:1}
+.fp .kicker .kind{font-size:18px}
+.fp .hed{font:800 104px/104px 'Playfair Display',serif;letter-spacing:-.014em;padding-bottom:8px;
+  font-variant-numeric:lining-nums proportional-nums;text-wrap:balance;hyphens:manual}
+.fp .deck-rule{width:144px;height:var(--rule);background:var(--ink);margin:16px auto}
+.fp .deck{font:italic 400 38px/48px 'Playfair Display',serif;text-align:center;text-wrap:balance;padding:0 32px;font-variant-numeric:lining-nums}
+.fp .byline{display:flex;justify-content:center;align-items:center;gap:16px;height:24px;margin-top:16px;font-size:17px;letter-spacing:.24em}
+.fp .byline i{width:48px;height:var(--hair);background:var(--ink)}
+.fp .left .deck,.fp .left .deck-rule{text-align:left;margin-left:0;padding:0}
+.fp .left .byline{justify-content:flex-start}
+
+.fp .bodyzone{flex:1 1 auto;min-height:0;display:flex;gap:40px;margin-top:24px;border-top:var(--rule) solid var(--ink);padding-top:24px}
+.fp .col{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.fp .col+.col::before{content:"";position:absolute;left:-20.75px;top:0;bottom:0;width:var(--hair);background:var(--ink)}
+.fp .col+.col{overflow:visible}
+.fp .fig{flex:0 0 auto}
+.fp .fig img{display:block;width:100%;height:auto;aspect-ratio:558/360}
+.fp .figcap{font:italic 400 18px/24px 'Source Serif 4',serif;margin-top:8px}
+.fp .flow{flex:1 1 auto;min-height:0;overflow:hidden;font:400 30px/40px 'Source Serif 4',serif;font-optical-sizing:auto;
+  text-align:justify;hyphens:manual;font-variant-numeric:oldstyle-nums proportional-nums;margin-top:-6px}
+.fp .flow p{text-indent:1.1em}
+.fp .flow p.first,.fp .flow p.cont{text-indent:0}
+.fp .flow p.brk{text-align-last:justify}
+.fp .flow p.first::first-letter{initial-letter:3;font-family:'Playfair Display',serif;font-weight:800;margin-right:14px}
+.fp .jump{flex:0 0 auto;height:40px;display:flex;align-items:center;font-size:16px;letter-spacing:.16em;visibility:hidden}
+
+.fp .photo-fill{flex:1 1 auto;min-height:160px;display:flex;flex-direction:column;margin-top:24px}
+.fp .imgbox{flex:1 1 auto;min-height:0;overflow:hidden}
+.fp .imgbox img{display:block;width:100%;height:100%;object-fit:cover}
+.fp .poster .hed{font-size:120px;line-height:120px}
+
+.fp .brief-top{flex:0 0 auto;display:flex;gap:32px;margin-top:24px;border-top:var(--rule) solid var(--ink);padding-top:24px}
+.fp .brief-top .txt{flex:1 1 0;min-width:0;font:400 30px/40px 'Source Serif 4',serif;text-align:justify;hyphens:manual;margin-top:-6px}
+.fp .brief-top .txt::first-letter{initial-letter:3;font-family:'Playfair Display',serif;font-weight:800;margin-right:14px}
+.fp .brief-top figure{flex:0 0 470px}
+.fp .brief-top img{display:block;width:100%;height:auto;aspect-ratio:470/320}
+.fp .list{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column;margin-top:24px;border-top:var(--bar) solid var(--ink);padding-top:16px}
+.fp .list-h{font-size:18px;letter-spacing:.24em;height:24px;margin-bottom:8px}
+.fp .li{flex:1 1 auto;display:flex;gap:24px;align-items:center;border-bottom:1px solid var(--ink);padding:12px 0}
+.fp .li:last-child{border-bottom:0}
+.fp .list.fixed{flex:0 0 auto}
+.fp .list.fixed .li{flex:0 0 auto;padding:16px 0}
+.fp .li-n{flex:0 0 48px;font:900 48px/1 'Libre Franklin',sans-serif;text-align:right;font-variant-numeric:lining-nums tabular-nums}
+.fp .li-body{min-width:0}
+.fp .li-sec{font-size:14px;letter-spacing:.2em;margin-bottom:8px}
+.fp .li-hed{font:700 30px/36px 'Playfair Display',serif;font-variant-numeric:lining-nums}
+.fp .li-sum{font:400 22px/28px 'Source Serif 4',serif;margin-top:4px}
+
+.fp .rail{flex:0 0 auto;margin-top:24px;border-top:var(--bar) solid var(--ink);display:flex}
+.fp .rail-h{flex:0 0 112px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px;line-height:22px;
+  letter-spacing:.2em;border-right:var(--rule) solid var(--ink);padding:0 8px}
+.fp .rail-items{flex:1 1 0;min-width:0;display:flex;flex-wrap:wrap}
+.fp .ri{flex:1 1 0;min-width:0;padding:16px 16px 16px 20px;border-right:var(--hair) solid var(--ink)}
+.fp .ri:last-child{border-right:0}
+.fp .grid .ri{flex:0 0 50%}
+.fp .grid .ri:nth-child(2n){border-right:0}
+.fp .grid .ri:nth-child(-n+2){border-bottom:var(--hair) solid var(--ink)}
+.fp .ri-sec{font-size:14px;letter-spacing:.18em;margin-bottom:8px;line-height:16px}
+.fp .ri-hed{font:700 28px/32px 'Playfair Display',serif;font-variant-numeric:lining-nums;text-wrap:balance}
+
+.fp .foot{flex:0 0 40px;margin-top:16px;border-top:var(--rule) solid var(--ink);display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  font:500 15px/20px 'Libre Franklin',sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.fp .dots{display:flex;gap:6px;align-items:center}
+.fp .dots span{width:10px;height:10px;border:1.5px solid var(--ink);border-radius:50%}
+.fp .dots span.on{background:var(--ink)}
+.fp .foot .tag{font-weight:700;letter-spacing:.2em}
+.fp .empty{flex:1;display:flex;align-items:center;justify-content:center;font:italic 400 38px/48px 'Playfair Display',serif}
+</style>
+
+<div class="fp{% if tint %} tint{% endif %}"{% if layout == "full" %} data-flow="{{ lead.flow_json }}"{% endif %}>
+  <div class="folio"><span>{{ folio.date }}</span><span>{{ folio.issue }} · {{ folio.edition }}</span><span>{{ folio.place }}</span></div>
+
+  <div class="mast">
+    {% if weather %}
+    <div class="ear wx">
+      <svg viewBox="0 0 56 56" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        {% if weather.glyph == "moon" %}
+        <path d="M36 6a22 22 0 1 0 14 34A18 18 0 0 1 36 6z"/>
+        {% elsif weather.glyph == "clear" %}
+        <circle cx="28" cy="28" r="10"/><path d="M28 4v6M28 46v6M4 28h6M46 28h6M11 11l4 4M41 41l4 4M11 45l4-4M41 15l4-4"/>
+        {% elsif weather.glyph == "partly" %}
+        <circle cx="20" cy="20" r="8"/><path d="M20 4v4M4 20h4M9 9l3 3M31 9l-3 3"/><path d="M18 44h24a9 9 0 0 0 0-18 13 13 0 0 0-24 4 7 7 0 0 0 0 14z" fill="#fff"/>
+        {% elsif weather.glyph == "rain" %}
+        <path d="M14 34h26a9 9 0 0 0 0-18 13 13 0 0 0-24 4 7 7 0 0 0-2 14z"/><path d="M18 42l-3 8M28 42l-3 8M38 42l-3 8"/>
+        {% elsif weather.glyph == "snow" %}
+        <path d="M14 34h26a9 9 0 0 0 0-18 13 13 0 0 0-24 4 7 7 0 0 0-2 14z"/><path d="M18 44v6M15 47h6M30 44v6M27 47h6M42 44v6M39 47h6"/>
+        {% elsif weather.glyph == "storm" %}
+        <path d="M14 32h26a9 9 0 0 0 0-18 13 13 0 0 0-24 4 7 7 0 0 0-2 14z"/><path d="M28 34l-6 10h8l-5 10"/>
+        {% elsif weather.glyph == "fog" %}
+        <path d="M8 20h40M4 30h40M12 40h40"/>
+        {% else %}
+        <path d="M12 42h30a10 10 0 0 0 0-20 15 15 0 0 0-28 5 8 8 0 0 0-2 15z"/>
+        {% endif %}
+      </svg>
+      <div><div class="lbl wx-l">{{ weather.label }}</div><div class="wx-t">{{ weather.temp }}</div><div class="wx-s">{{ weather.text }}. {{ weather.hi }} / {{ weather.lo }}</div></div>
+    </div>
+    {% else %}<div class="ear blank"></div>{% endif %}
+    <div class="nameplate np-{{ paper.np }}"><span class="np-name">{{ paper.name }}</span>{% if paper.sub != "" %}<span class="np-sub">{{ paper.sub }}</span>{% endif %}</div>
+    {% if qr %}<div class="ear qr"><img src="{{ qr }}" alt=""><span class="lbl">Read in full</span></div>{% else %}<div class="ear blank"></div>{% endif %}
+  </div>
+  <div class="oxford"></div>
+
+  {% if layout == "empty" %}
+  <div class="empty">{{ message }}</div>
+  {% else %}
+
+  {% capture leadblock %}
+  <div class="lead{% if layout == "poster" %} left poster{% endif %}">
+    <div class="kicker lbl"><span class="chip">{{ lead.kicker }}</span><span class="kind">{{ lead.kind }}</span></div>
+    <h1 class="hed" data-lines="{{ lead.lines }}">{{ lead.headline }}</h1>
+    {% if lead.deck != "" %}<div class="deck-rule"></div><p class="deck">{{ lead.deck }}</p>{% endif %}
+    <div class="byline lbl"><i></i>{{ lead.byline }}<i></i></div>
+  </div>
+  {% endcapture %}
+
+  {% capture railblock %}
+  <div class="rail{% if rail_grid %} grid{% endif %}"><div class="rail-h lbl">{{ rail_head }}</div><div class="rail-items">
+    {% for r in rail %}<div class="ri"><div class="ri-sec lbl">{{ r.section }}</div><div class="ri-hed">{{ r.headline }}</div></div>{% endfor %}
+  </div></div>
+  {% endcapture %}
+
+  {% if layout == "full" %}
+    {{ leadblock }}
+    <div class="bodyzone">
+      <div class="col">
+        {% if lead.image %}<figure class="fig"><img src="{{ lead.image }}" alt="">{% if lead.caption != "" %}<figcaption class="figcap">{{ lead.caption }}</figcaption>{% endif %}</figure>{% endif %}
+        <div class="flow"></div>
+      </div>
+      <div class="col"><div class="flow"></div><div class="jump lbl">{{ lead.jump }}</div></div>
+    </div>
+    {{ railblock }}
+  {% elsif layout == "summary" %}
+    {{ leadblock }}
+    <div class="photo-fill"><div class="imgbox"><img src="{{ lead.image }}" alt=""></div>{% if lead.caption != "" %}<p class="figcap">{{ lead.caption }}</p>{% endif %}</div>
+    {{ railblock }}
+  {% elsif layout == "poster" %}
+    <div class="photo-fill" style="margin-top:22px"><div class="imgbox"><img src="{{ lead.image }}" alt=""></div></div>
+    {{ leadblock }}
+    {{ railblock }}
+  {% elsif layout == "bulletin" %}
+    {{ leadblock }}
+    <div class="photo-fill"><div class="imgbox"><img src="{{ lead.image }}" alt=""></div>{% if lead.caption != "" %}<p class="figcap">{{ lead.caption }}</p>{% endif %}</div>
+    <div class="list fixed"><div class="list-h lbl">{{ list_head }}</div>
+      {% for r in rail %}<div class="li"><span class="li-n">{{ r.n }}</span><div class="li-body"><div class="li-sec lbl">{{ r.section }}</div><div class="li-hed">{{ r.headline }}</div>{% if r.summary != "" %}<div class="li-sum">{{ r.summary }}</div>{% endif %}</div></div>{% endfor %}
+    </div>
+  {% else %}
+    {{ leadblock }}
+    <div class="brief-top"><div class="txt">{{ lead.para }}</div>
+      {% if lead.image %}<figure><img src="{{ lead.image }}" alt="">{% if lead.caption != "" %}<figcaption class="figcap">{{ lead.caption }}</figcaption>{% endif %}</figure>{% endif %}</div>
+    <div class="list"><div class="list-h lbl">{{ list_head }}</div>
+      {% for r in rail %}<div class="li"><span class="li-n">{{ r.n }}</span><div class="li-body"><div class="li-sec lbl">{{ r.section }}</div><div class="li-hed">{{ r.headline }}</div></div></div>{% endfor %}
+    </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="foot"><span>{{ foot.note }}</span>
+    <span class="dots">{% for d in dots %}<span{% if d.on %} class="on"{% endif %}></span>{% endfor %}</span>
+    <span class="tag">{% if foot.tag != "" %}{{ foot.tag }}{% else %}{{ folio.edition }}{% endif %}</span></div>
+</div>
+
+<script>
+(function(){
+const run=()=>{
+const px=v=>parseFloat(v), cs=getComputedStyle;
+const lines=(el,pad=0)=>Math.round((el.getBoundingClientRect().height-pad)/px(cs(el).lineHeight));
+// 1. headline: step down a fixed scale until within its line budget
+const SCALE=[120,112,104,96,88,80,72,64,56];
+document.querySelectorAll('.fp .hed').forEach(h=>{
+  const max=+h.dataset.lines; let i=SCALE.indexOf(px(cs(h).fontSize)); if(i<0) i=2;
+  const pad=px(cs(h).paddingBottom);
+  while(lines(h,pad)>max && i<SCALE.length-1){i++;h.style.fontSize=SCALE[i]+'px';h.style.lineHeight=SCALE[i]+'px';}
+  h.style.letterSpacing=SCALE[i]>=88?'-.016em':'-.006em';
+});
+// 2. nameplate never wider than the gap between the ears
+document.querySelectorAll('.fp .nameplate').forEach(n=>{const s=n.querySelector('.np-name');let f=px(cs(s).fontSize);
+  while(s.offsetWidth>n.clientWidth&&f>40){f-=2;s.style.fontSize=f+'px';}});
+// 3. rail headlines: one shared size, the largest at which all fit 3 lines
+document.querySelectorAll('.fp .rail').forEach(r=>{const hs=[...r.querySelectorAll('.ri-hed')];
+  for(const [f,l] of [[28,32],[27,32],[26,32],[25,30],[24,28]]){hs.forEach(e=>{e.style.fontSize=f+'px';e.style.lineHeight=l+'px';});
+    if(hs.every(e=>lines(e)<=3)) break;}});
+// 4. lists shed from the bottom (keep >=3); bulletin keeps its photo >= 240px
+document.querySelectorAll('.fp .list').forEach(b=>{const it=[...b.querySelectorAll('.li')];
+  while(b.scrollHeight>b.clientHeight+1&&it.length>3) it.pop().remove();});
+document.querySelectorAll('.fp .list.fixed').forEach(b=>{const ph=b.parentElement.querySelector('.photo-fill');
+  const it=[...b.querySelectorAll('.li')];while(ph&&ph.getBoundingClientRect().height<240&&it.length>3) it.pop().remove();});
+// 5. baseline snap + word flow across columns; end on a full stop if it costs <=12 words
+document.querySelectorAll('[data-flow]').forEach(page=>{
+  const boxes=[...page.querySelectorAll('.flow')];
+  page.querySelectorAll('.fig').forEach(f=>{const h=f.getBoundingClientRect().height;f.style.height=Math.ceil(h/40)*40+'px';});
+  boxes.forEach(b=>{b.style.flex='0 0 auto';const col=b.parentElement;let used=0;
+    [...col.children].forEach(c=>{if(c!==b)used+=c.getBoundingClientRect().height;});
+    b.style.height=Math.max(0,Math.floor((col.clientHeight-used)/40)*40)+'px';});
+  // a column with room for < 4 lines under its photo: let the photo fill it instead of a dead band
+  for(const b of [...boxes]){const f=b.parentElement.querySelector('.fig');
+    if(f&&px(b.style.height)<160){const img=f.querySelector('img'),cap=f.querySelector('figcaption');
+      const room=f.getBoundingClientRect().height+px(b.style.height);f.style.height=room+'px';
+      img.style.aspectRatio='auto';img.style.objectFit='cover';
+      img.style.height=(room-(cap?cap.getBoundingClientRect().height+8:0))+'px';
+      b.remove();boxes.splice(boxes.indexOf(b),1);}}
+  const toks=[];JSON.parse(page.dataset.flow).forEach(s=>{const w=s.t.split(' ');w.forEach((x,k)=>toks.push({w:x,p:s.p&&k===0,e:k===w.length-1}));});
+  const placed=[];let i=0,first=true;
+  for(const box of boxes){let p=null;
+    while(i<toks.length){const t=toks[i];
+      if(t.p||!p){p=document.createElement('p');p.className=first?'first':(t.p?'':'cont');first=false;box.appendChild(p);}
+      const before=p.textContent;p.textContent=before?before+' '+t.w:t.w;
+      if(box.scrollHeight>box.clientHeight+1){p.textContent=before;
+        if(!before){p.remove();if(!placed.length)first=true;} else if(!t.p) p.classList.add('brk');break;}
+      placed.push({p,before,tok:t});i++;}
+    if(i>=toks.length)break;}
+  if(i<toks.length){let k=placed.length-1;while(k>=0&&!placed[k].tok.e)k--;
+    if(placed.length-1-k<=12){while(placed.length-1>k){const l=placed.pop();l.p.textContent=l.before;if(!l.before)l.p.remove();}
+      if(placed.length) placed[placed.length-1].p.classList.remove('brk');}
+    else{const lb=boxes.filter(b=>b.childNodes.length).pop();
+      while(placed.length){const l=placed[placed.length-1];l.p.classList.remove('brk');
+        l.p.textContent=(l.before?l.before+' ':'')+l.tok.w+' …';
+        if(lb.scrollHeight<=lb.clientHeight+1) break;
+        l.p.textContent=l.before; if(!l.before) l.p.remove(); placed.pop();}}
+    page.querySelectorAll('.jump').forEach(j=>j.style.visibility='visible');}
+});
+document.body.dataset.ready=1;
+};
+// wait for fonts AND images: the flow measures the figure, so it must have its real height
+const loaded=new Promise(r=>document.readyState==='complete'?r():window.addEventListener('load',r));
+// Load every face explicitly: body text is inserted by this script, so the browser would otherwise
+// only start fetching the body font after we've measured with a fallback (lines then reflow).
+const FACES=['400 30px "Source Serif 4"','italic 400 18px "Source Serif 4"','800 104px "Playfair Display"',
+  '700 28px "Playfair Display"','italic 400 38px "Playfair Display"','700 16px "Libre Franklin"','400 92px "UnifrakturMaguntia"'];
+const fonts=document.fonts?Promise.all(FACES.map(f=>document.fonts.load(f,'Ab£1').catch(()=>null))).then(()=>document.fonts.ready):Promise.resolve();
+Promise.all([loaded,fonts]).then(run);
+})();
+</script>

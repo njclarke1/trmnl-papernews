@@ -1,0 +1,175 @@
+"""Shared plumbing for adapters: polite HTTP, block detection, article reading, splash matching."""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import time
+import urllib.parse as up
+from datetime import datetime, timezone
+
+import requests
+from bs4 import BeautifulSoup
+
+from .. import config, store, text
+from ..model import Story
+
+
+class SourceUnavailable(Exception):
+    """Outage, block or challenge page → keep last good, show CACHED."""
+
+
+class ShapeError(Exception):
+    """The source changed shape → keep last good, show DATA CHECK."""
+
+
+CHALLENGE = ("cf-chl", "just a moment...", "attention required", "px-captcha", "_incapsula_",
+             "access denied", "are you a robot", "captcha-delivery")
+
+
+class Http:
+    def __init__(self, session: requests.Session | None = None):
+        self.s = session or requests.Session()
+        self.s.headers.update({"User-Agent": config.USER_AGENT, "Accept-Language": "en-GB,en;q=0.9"})
+        self._last: dict[str, float] = {}
+
+    def get(self, url: str, *, binary: bool = False, **kw):
+        host = up.urlparse(url).netloc
+        wait = config.HOST_PACING_S - (time.time() - self._last.get(host, 0))
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            r = self.s.get(url, timeout=kw.pop("timeout", 20), **kw)
+        except requests.RequestException as e:
+            raise SourceUnavailable(f"{host}: {type(e).__name__}") from e
+        finally:
+            self._last[host] = time.time()
+        if r.status_code in (401, 403, 429, 503):
+            raise SourceUnavailable(f"{host}: HTTP {r.status_code}")
+        if r.status_code >= 400:
+            raise SourceUnavailable(f"{host}: HTTP {r.status_code} for {url}")
+        if not binary:
+            head = r.text[:20000].lower()
+            if any(c in head for c in CHALLENGE) and "<article" not in head:
+                raise SourceUnavailable(f"{host}: challenge page")
+        return r
+
+
+# ----------------------------------------------------------------------------- JSON-LD articles
+ARTICLE_TYPES = {"NewsArticle", "Article", "ReportageNewsArticle", "AnalysisNewsArticle", "LiveBlogPosting",
+                 "OpinionNewsArticle", "BackgroundNewsArticle"}
+
+
+def jsonld_article(html: str) -> dict:
+    soup = BeautifulSoup(html, "lxml")
+    for tag in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(tag.string or "")
+        except Exception:
+            continue
+        stack = data if isinstance(data, list) else [data]
+        while stack:
+            o = stack.pop(0)
+            if not isinstance(o, dict):
+                continue
+            if isinstance(o.get("@graph"), list):
+                stack.extend(o["@graph"])
+            t = o.get("@type")
+            t = t if isinstance(t, list) else [t]
+            if ARTICLE_TYPES & set(x for x in t if isinstance(x, str)):
+                return o
+    return {}
+
+
+def _free_flag(o: dict) -> bool | None:
+    v = o.get("isAccessibleForFree")
+    if isinstance(v, str):
+        v = v.strip().lower() not in ("false", "0", "no")
+    parts = o.get("hasPart")
+    parts = parts if isinstance(parts, list) else [parts] if parts else []
+    if any(isinstance(p, dict) and str(p.get("isAccessibleForFree")).lower() == "false" for p in parts):
+        return False
+    return v if isinstance(v, bool) else None
+
+
+def _first(v):
+    return v[0] if isinstance(v, list) and v else v
+
+
+def _image(o: dict, soup: BeautifulSoup) -> str:
+    im = _first(o.get("image"))
+    if isinstance(im, dict):
+        im = im.get("url")
+    if not im:
+        og = soup.find("meta", property="og:image")
+        im = og.get("content") if og else ""
+    return im or ""
+
+
+def read_article(http: Http, url: str, max_age_h: float = 24) -> Story:
+    """Article metadata + body from the page a normal visitor gets. Cached by URL."""
+    key = hashlib.sha1(url.encode()).hexdigest()
+    hit = store.cache_get("article", key)
+    if hit and time.time() - hit.get("_at", 0) < max_age_h * 3600:
+        return Story(**{k: v for k, v in hit.items() if not k.startswith("_")})
+    html = http.get(url).text
+    soup = BeautifulSoup(html, "lxml")
+    o = jsonld_article(html)
+    free = _free_flag(o)
+    body_ld = text.clean(o.get("articleBody", "")) if o.get("articleBody") else ""
+    paras: list[str] = []
+    try:
+        import trafilatura
+        tf = trafilatura.extract(html, include_comments=False, include_tables=False, favor_precision=True) or ""
+    except Exception:
+        tf = ""
+    tf_paras = text.paragraphs_from_blob(tf)
+    if tf_paras and len(tf) >= 0.8 * len(body_ld) and len(tf_paras) >= 3:
+        paras = tf_paras
+    elif body_ld:
+        paras = text.paragraphs_from_blob(o.get("articleBody", "")) or [body_ld]
+    if free is False:
+        paras = []                         # never show what the publisher marks as paid
+    author = _first(o.get("author"))
+    og_title = soup.find("meta", property="og:title")
+    og_desc = soup.find("meta", property="og:description")
+    st = Story(
+        headline=text.clean(o.get("headline") or (og_title.get("content") if og_title else "")),
+        standfirst=text.clean(o.get("description") or (og_desc.get("content") if og_desc else "")),
+        paragraphs=paras,
+        byline=text.clean(author.get("name") if isinstance(author, dict) else author or ""),
+        section=text.clean(_first(o.get("articleSection")) or ""),
+        url=url, image_url=_image(o, soup), is_free=free,
+        live="LiveBlogPosting" in (o.get("@type") if isinstance(o.get("@type"), list) else [o.get("@type")]))
+    store.cache_put("article", key, {**st.__dict__, "_at": time.time()})
+    return st
+
+
+# ----------------------------------------------------------------------------- splash matching
+STOP = set("a an and are as at be but by for from has have he her his in is it its of on or that the their this to "
+           "was were which will with would after over under into than then there they not also been says said new "
+           "leads front page paper papers reports report splash story".split())
+
+
+def tokens(s: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9£]+", (s or "").lower()) if w not in STOP and len(w) > 1}
+
+
+def match_score(a: str, b: str) -> float:
+    ta, tb = tokens(a), tokens(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / min(len(ta), len(tb))
+
+
+def best_match(query: str, stories: list[Story], threshold: float = 0.35) -> int | None:
+    scored = [(match_score(query, f"{s.headline} {s.standfirst}"), i) for i, s in enumerate(stories)]
+    scored = [x for x in scored if len(tokens(query) & tokens(f"{stories[x[1]].headline} {stories[x[1]].standfirst}")) >= 2]
+    if not scored:
+        return None
+    score, i = max(scored)
+    return i if score >= threshold else None
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
