@@ -28,7 +28,7 @@ class Paper:
 PAPERS: dict[str, Paper] = {p.key: p for p in [
     Paper("guardian", "The Guardian", "gu", "the Guardian", "guardian", "summary",
           review_names=("The Guardian", "Guardian"),
-          note_web="Guardian Content API · editors’ picks", note_print="Print splash · Guardian Content API"),
+          note_web="Guardian Content API · editors’ picks", note_print="Printed page 1 · Guardian Content API"),
     Paper("bbc", "BBC NEWS", "bbc", "the BBC", "web", "bulletin",
           home="https://www.bbc.co.uk/news", article_re=r"^/news/(articles/[a-z0-9]{10,}|[a-z0-9_-]+-\d{7,})$",
           rss=("https://feeds.bbci.co.uk/news/rss.xml",),

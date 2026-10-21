@@ -1,7 +1,10 @@
 """The Guardian via its Content API (free Developer key: 500 calls/day, body text included).
 
-Editors' picks on /uk give the website front in the editors' own order. For the morning edition,
-the PA round-up's printed splash is matched against the picks (and a search, if needed).
+Editors' picks on /uk give the website front in the editors' own order. For the morning edition the
+API's own print metadata gives the printed front: articles in today's newspaper edition, main book,
+page 1 (`newspaperPageNumber`, `newspaperEditionDate`, `newspaper-book` tag). The round-up's splash
+picks the lead among them. If the print metadata is missing, the round-up's splash is matched against
+the picks (and a search) as before.
 Shapes follow the documented API; verify against a real response in Phase 1.
 """
 from __future__ import annotations
@@ -50,6 +53,20 @@ def to_story(item: dict) -> Story:
                  live="tone/minutebyminute" in tones or item.get("type") == "liveblog")
 
 
+PRINT_FIELDS = FIELDS + ",newspaperPageNumber,newspaperEditionDate,wordcount,publication"
+MAIN_BOOK = "theguardian/mainsection"
+
+
+def on_front(item: dict, day_iso: str) -> bool:
+    """Page 1 of the main book of `day_iso`'s Guardian (supplements number their own pages from 1)."""
+    f = item.get("fields") or {}
+    books = {t.get("id") for t in item.get("tags", []) or [] if t.get("type") == "newspaper-book"}
+    return (str(f.get("newspaperPageNumber", "")) == "1"
+            and str(f.get("newspaperEditionDate", "")).startswith(day_iso)
+            and f.get("publication", "The Guardian") == "The Guardian"
+            and MAIN_BOOK in books)
+
+
 def _ok_lead(item: dict) -> bool:
     tones = {t.get("id") for t in item.get("tags", []) or []}
     return item.get("type") in ("article", "liveblog") and "tone/comment" not in tones
@@ -76,7 +93,25 @@ class GuardianAdapter:
             "from-date": day_iso, "order-by": "relevance", "page-size": 5}))
         return r.json().get("response", {}).get("results", [])
 
+    def front_page(self, day_iso: str) -> list[dict]:
+        """Today's printed page 1, from the API's print metadata. [] if it isn't there (yet)."""
+        r = self.http.get(f"{API}/search", params={**_params(**{
+            "use-date": "newspaper-edition", "from-date": day_iso, "to-date": day_iso, "page-size": 50,
+            "order-by": "newest"}), "show-fields": PRINT_FIELDS, "show-tags": "tone,newspaper-book"})
+        try:
+            results = r.json()["response"]["results"]
+        except (KeyError, ValueError):
+            return []
+        return [i for i in results if on_front(i, day_iso)]
+
     def build(self, slot_kind: str, day_iso: str, review=None) -> Edition:
+        if slot_kind == "am":
+            try:
+                front = self.front_page(day_iso)
+            except SourceUnavailable:
+                front = []
+            if front:
+                return self._from_front(front, review)
         items = [i for i in self.picks()]
         leads = [i for i in items if _ok_lead(i)]
         if not leads:
@@ -97,3 +132,26 @@ class GuardianAdapter:
         if printed and len(printed) > 15:
             lead.headline = printed
         return Edition("guardian", kind, lead, stories[1:6], note="", built_at=utc_now_iso())
+
+    def _from_front(self, front: list[dict], review) -> Edition:
+        """The printed page 1. Lead: the round-up's splash if it matches; else the longest news story
+        (the splash carries the most words on the page)."""
+        news = [i for i in front if _ok_lead(i)]
+        if not news:
+            raise ShapeError("Guardian: page 1 has no news article")
+        news.sort(key=lambda i: -int((i.get("fields") or {}).get("wordcount") or 0))
+        stories = [to_story(i) for i in news]
+        idx = best_match(review.query, stories) if review is not None else None
+        if idx is not None:
+            stories.insert(0, stories.pop(idx))
+            if review.quoted and len(review.quoted) > 15:
+                stories[0].headline = review.quoted
+        rail = stories[1:]
+        try:                                    # fill the rail from the website front
+            seen = {s.url for s in stories}
+            rail += [s for s in (to_story(i) for i in self.picks() if _ok_lead(i)) if s.url not in seen]
+        except (SourceUnavailable, ShapeError):
+            pass
+        for s in rail:
+            s.paragraphs = []
+        return Edition("guardian", "print_front", stories[0], rail[:5], note="", built_at=utc_now_iso())

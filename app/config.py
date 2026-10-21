@@ -36,6 +36,7 @@ GUARDIAN_API_KEY = _env("GUARDIAN_API_KEY")
 NYT_API_KEY = _env("NYT_API_KEY")          # free key from developer.nytimes.com (Top Stories API)
 USER_AGENT = _env("USER_AGENT", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36")
 HOST_PACING_S = float(_env("HOST_PACING_S", "2"))
+HOST_PACING_OVERRIDE = {"api.nytimes.com": max(HOST_PACING_S, 12.5)} if HOST_PACING_S > 0 else {}   # NYT: 5 calls/min
 MIN_BODY_CHARS = int(_env("MIN_BODY_CHARS", "1500"))
 OCR_ENABLED = _bool("OCR_ENABLED", True)
 DEMO_MODE = _bool("DEMO_MODE", False)    # serve fixture editions instead of fetching (dev / harness)

@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 
 from .. import text
 from ..papers import PAPERS
-from .base import Http
+from .base import Http, match_score, tokens
 
 INDEX = "https://www.expressandstar.com/uk-news/"
 
@@ -64,6 +64,27 @@ def parse(html_or_text: str) -> dict[str, ReviewEntry]:
                 out[key] = ReviewEntry(key, p, q.group(1).strip() if q else "")
                 break
     return out
+
+
+def agree(a: ReviewEntry, b: ReviewEntry) -> bool:
+    return match_score(a.query, b.query) >= 0.35 and len(tokens(a.query) & tokens(b.query)) >= 2
+
+
+def combine(pa: dict[str, ReviewEntry], bbc: dict[str, ReviewEntry]) -> tuple[dict[str, ReviewEntry], list[str]]:
+    """Two independent round-ups. Both agree, or only one names the splash ⇒ use it (PA's wording first).
+    They disagree ⇒ no splash for that paper (its morning edition falls back to the web front, and any
+    printed-front OCR runs unchecked). Returns (entries, papers in conflict)."""
+    out, conflict = {}, []
+    for key in set(pa) | set(bbc):
+        a, b = pa.get(key), bbc.get(key)
+        if a and b and not agree(a, b):
+            conflict.append(key)
+            continue
+        e = a or b
+        if a and b and not a.quoted:
+            e = ReviewEntry(key, a.summary, b.quoted)
+        out[key] = e
+    return out, sorted(conflict)
 
 
 def fetch(http: Http, day_iso: str) -> dict[str, ReviewEntry]:

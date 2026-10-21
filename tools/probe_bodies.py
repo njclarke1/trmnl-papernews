@@ -4,7 +4,8 @@ Run on the NAS (residential IP; the dev sandbox cannot reach these sites):
   docker run --rm -v ~/fp-probe:/w -w /w python:3.12-slim sh -c \
     "apt-get -qq update && apt-get -qq install -y tesseract-ocr >/dev/null && \
      pip -q install requests beautifulsoup4 lxml trafilatura pillow pytesseract pypdfium2 && python probe_bodies.py"
-  (front-page images only: append `fronts`; NYT API + PDF only: append `nyt`, with -e NYT_API_KEY=...)
+  (front-page images only: append `fronts`; NYT API + PDF: `nyt`; print metadata + BBC review: `print`;
+   pass -e GUARDIAN_API_KEY=... -e NYT_API_KEY=... to docker run)
 
 Writes ./report.md, ./results.json and ./raw/*.gz (raw responses become test stubs).
 Reads only what each site serves an ordinary visitor. No paywall bypassing.
@@ -292,8 +293,57 @@ def nyt_checks():
         row["freedomforum"] = {"error": f"{type(e).__name__}: {e}"}
     return row
 
+def print_meta_checks():
+    """Publisher print metadata + the BBC's nightly review (21 Oct design; all unverified until this runs)."""
+    import datetime as dt, os
+    today, row = dt.date.today(), {}
+    gk = os.environ.get("GUARDIAN_API_KEY", "")
+    for day in (today, today + dt.timedelta(days=1)):
+        if not gk:
+            row["guardian"] = "GUARDIAN_API_KEY not set (run with -e GUARDIAN_API_KEY=...)"; break
+        try:
+            r = S.get("https://content.guardianapis.com/search", timeout=20, params={
+                "api-key": gk, "use-date": "newspaper-edition", "from-date": str(day), "to-date": str(day),
+                "page-size": 50, "show-fields": "headline,newspaperPageNumber,newspaperEditionDate,wordcount,publication",
+                "show-tags": "newspaper-book,newspaper-book-section"})
+            (RAW / f"guardian-print-{day}.json.gz").write_bytes(gzip.compress(r.content.replace(gk.encode(), b"KEY")))
+            res = r.json().get("response", {}).get("results", []) if r.ok else []
+            p1 = [(i["fields"].get("headline"), i["fields"].get("wordcount"),
+                   [t["id"] for t in i.get("tags", []) if t.get("type") == "newspaper-book"])
+                  for i in res if str((i.get("fields") or {}).get("newspaperPageNumber")) == "1"]
+            row[f"guardian_{day}"] = dict(status=r.status_code, results=len(res), page1=p1)
+        except Exception as e:
+            row[f"guardian_{day}"] = {"error": f"{type(e).__name__}: {e}"}
+    nk = os.environ.get("NYT_API_KEY", "")
+    if nk:
+        try:
+            time.sleep(13)                                   # NYT: 5 calls a minute
+            r = S.get("https://api.nytimes.com/svc/search/v2/articlesearch.json", timeout=20, params={
+                "api-key": nk, "begin_date": f"{today - dt.timedelta(days=1):%Y%m%d}", "end_date": f"{today:%Y%m%d}",
+                "fq": 'print_page:1 AND print_section:"A"', "sort": "newest"})
+            (RAW / "nyt-a1.json.gz").write_bytes(gzip.compress(r.content.replace(nk.encode(), b"KEY")))
+            docs = ((r.json().get("response") or {}).get("docs") or []) if r.ok else []
+            row["nyt_a1"] = dict(status=r.status_code, docs=len(docs), first=[
+                (d.get("print_section"), d.get("print_page"), (d.get("headline") or {}).get("print_headline"),
+                 d.get("pub_date"), type(d.get("multimedia")).__name__) for d in docs[:8]])
+        except Exception as e:
+            row["nyt_a1"] = {"error": f"{type(e).__name__}: {e}"}
+    for idx in ("https://www.bbc.co.uk/news/blogs/the_papers", "https://www.bbc.co.uk/news/uk"):
+        code, html, final = get(idx, "bbc-papers-index-" + idx.rsplit("/", 1)[-1])
+        links = [(a.get_text(" ", strip=True)[:90], a["href"]) for a in BeautifulSoup(html or "", "lxml").find_all("a", href=True)
+                 if re.match(r"\s*(newspaper headlines|the papers)", a.get_text(" "), re.I)]
+        row[f"bbc_{idx.rsplit('/', 1)[-1]}"] = dict(status=code, final=final, links=links[:5])
+        if links and code == 200:
+            u = up.urljoin(final, links[0][1]); c2, h2, _ = get(u, "bbc-papers-article")
+            row["bbc_article"] = dict(url=u, status=c2, sample=re.sub(r"\s+", " ", BeautifulSoup(h2 or "", "lxml").get_text(" "))[:1200])
+            break
+    return row
+
 if not sys.argv[1:] or "nyt" in sys.argv[1:]:
     results["_nyt"] = nyt_checks()
+
+if not sys.argv[1:] or "print" in sys.argv[1:]:
+    results["_print_meta"] = print_meta_checks()
 
 if not sys.argv[1:] or "fronts" in sys.argv[1:]:
     results["_front_images"] = {k: front_image(k, s) for k, s in FRONTS.items()}
@@ -334,6 +384,9 @@ if fi:
 ny = results.get("_nyt")
 if ny:
     lines += ["## The New York Times (API + printed-front PDF)", "", "```", json.dumps(ny, indent=1, default=str)[:3000], "```", ""]
+pm = results.get("_print_meta")
+if pm:
+    lines += ["## Print metadata (Guardian page 1, NYT A1) and the BBC review", "", "```", json.dumps(pm, indent=1, default=str)[:5000], "```", ""]
 pr = results.get("_papers_review")
 if pr: lines += ["## PA 'What the papers say'", f"index {pr['index_status']}, links {pr['links'][:2]}", ""]
 (OUT / "report.md").write_text("\n".join(lines))

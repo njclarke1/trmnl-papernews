@@ -19,13 +19,13 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 
 | Paper | Order (the "front") | Body text |
 |---|---|---|
-| Guardian | Content API editors' picks | Content API |
+| Guardian | Content API editors' picks. **Morning:** the API's print metadata, i.e. page 1 of today's main book | Content API |
 | BBC, i, Telegraph, New World, Spectator (and Independent if enabled) | Homepage order, found by article URL pattern; RSS order as fallback | The article page a normal visitor gets (JSON-LD `articleBody`, then trafilatura) |
 | FT, The Times | Homepage headlines | **Morning edition:** OCR of the published printed front page (opening of the splash, up to "Continued on page N"). Otherwise headline and standfirst only |
-| The New York Times | Top Stories API (editors' home-page order; free key) | **Morning edition:** OCR of the NYT's own printed front-page PDF (up to "Continued on Page A8"), accepted only if it matches one of the API's top stories. Otherwise headline and abstract only |
+| The New York Times | Top Stories API (editors' home-page order; free key) | **Morning edition:** OCR of the NYT's own printed front-page PDF (up to "Continued on Page A8"), accepted only if it matches a story the Article Search API lists on page A1 (the top stories if that call fails); the rest of A1 fills the rail. Otherwise headline and abstract only |
 | The Economist | Homepage headlines | Headline and rubric only (paywalled); no print OCR (weekly) |
 
-- **Morning edition:** PA's nightly "What the papers say" round-up identifies each paper's **printed splash**, which is matched to that paper's web article (`print_front`, labelled "Today's front page").
+- **Morning edition:** two independent round-ups name each paper's **printed splash**: PA's "What the papers say" and BBC News's nightly newspaper review. The splash is matched to that paper's web article (`print_front`, labelled "Today's front page"). If both round-ups name a splash and they disagree, neither is used for that paper. The Guardian and the NYT also have the publisher's own print metadata (page 1 / A1).
 - **The publisher's own free flag rules:** if an article is marked paid (`isAccessibleForFree: false`, or a gated `hasPart`), no body text is shown, whatever the extractor found. There is no paywall circumvention of any kind.
 - **Layouts are chosen from what actually arrived:** `full` (body text), `summary` (photo + standfirst), `poster`, `bulletin` (list with summaries) or `briefing` (list only). A paper never shows a broken page; it steps down a layout.
 
@@ -44,7 +44,7 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Var | Default | |
 |---|---|---|
 | `GUARDIAN_API_KEY` | — | Free Developer key from open-platform.theguardian.com (non-commercial) |
-| `NYT_API_KEY` | — | Free key from developer.nytimes.com (enable the Top Stories API); about 30 calls a day are used |
+| `NYT_API_KEY` | — | Free key from developer.nytimes.com (enable Top Stories and Article Search); well under 100 calls a day, paced at 12.5 s (the limit is 5 a minute) |
 | `PUBLIC_BASE_URL` | `http://192.168.68.111:3461` | What the template uses to load fonts and images |
 | `ROTATION` | `guardian,bbc,times,nyt,ft,telegraph,newworld,economist,spectator,i` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
 | `SLOT_MINUTES` | `3` | Minutes per paper (2–5 intended); match the Kindle refresh interval |
@@ -73,7 +73,7 @@ To check a state on the panel without waiting for real news, point a second plug
 
 ```bash
 pip install -r requirements-dev.txt && playwright install chromium   # plus: apt install tesseract-ocr
-pytest -q                                   # 102 tests (~5 min); OCR tests skip without tesseract
+pytest -q                                   # 114 tests (~5 min); OCR tests skip without tesseract
 python tools/render_harness.py              # every demo state → out/harness/*.png (16 greys) + report.json
 python tools/make_synthetic_fronts.py       # regenerate OCR test fronts
 ```

@@ -16,7 +16,7 @@ from datetime import datetime
 from . import clock, config, images, layout, store
 from .model import Edition
 from .papers import PAPERS
-from .sources import demo, papers_review, printfront
+from .sources import bbc_papers, demo, papers_review, printfront
 from .sources.base import Http, ShapeError, SourceUnavailable
 from .sources.guardian import GuardianAdapter
 from .sources.nyt import NytAdapter
@@ -30,19 +30,36 @@ class Builder:
     def __init__(self, http: Http | None = None):
         self.http = http or Http()
         self._lock = threading.Lock()
-        self._reviews: dict[str, dict] = {}
+        self._reviews: dict[tuple, dict] = {}       # (slot, source) → entries; successes only
+        self._review_failed: dict[tuple, float] = {}  # (slot, source) → when it last failed
 
     # ------------------------------------------------------------------ one paper
+    REVIEW_SOURCES = {"pa": papers_review.fetch, "bbc": bbc_papers.fetch}
+
+    def _review_source(self, slot: clock.Slot, name: str) -> dict:
+        key = (slot.id, name)
+        if key in self._reviews:
+            return self._reviews[key]
+        if time.time() - self._review_failed.get(key, 0) < 240:
+            return {}                         # failed this tick: don't refetch for every paper
+        try:
+            got = self.REVIEW_SOURCES[name](self.http, slot.day.isoformat())
+        except SourceUnavailable as e:
+            log.warning("papers review (%s) unavailable: %s", name, e)
+            got = {}
+        if got:
+            self._reviews[key] = got
+        else:
+            self._review_failed[key] = time.time()    # not cached: a later retry looks again
+        return got
+
     def _review(self, slot: clock.Slot) -> dict:
         if slot.kind != "am" or config.DEMO_MODE:
             return {}
-        if slot.id not in self._reviews:
-            try:
-                self._reviews[slot.id] = papers_review.fetch(self.http, slot.day.isoformat())
-            except SourceUnavailable as e:
-                log.warning("papers review unavailable: %s", e)
-                return {}                     # don't cache a failure: the next retry looks again
-        return self._reviews[slot.id]
+        entries, conflict = papers_review.combine(self._review_source(slot, "pa"), self._review_source(slot, "bbc"))
+        if conflict:
+            log.warning("round-ups disagree on the splash for %s: not used", ", ".join(conflict))
+        return entries
 
     def _raw(self, url: str) -> bytes:
         if url.startswith("file://"):

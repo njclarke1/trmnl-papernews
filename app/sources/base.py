@@ -35,7 +35,7 @@ class Http:
 
     def get(self, url: str, *, binary: bool = False, **kw):
         host = up.urlparse(url).netloc
-        wait = config.HOST_PACING_S - (time.time() - self._last.get(host, 0))
+        wait = config.HOST_PACING_OVERRIDE.get(host, config.HOST_PACING_S) - (time.time() - self._last.get(host, 0))
         if wait > 0:
             time.sleep(wait)
         try:
