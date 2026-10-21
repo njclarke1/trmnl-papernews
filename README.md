@@ -4,7 +4,12 @@
 
 A newspaper front page for a jailbroken Kindle Paperwhite (11th gen, 1236×1648, 16 greys) running TRMNL through KOReader, served by a self-hosted LaraPaper.
 
-Seven papers rotate one per refresh: **The Guardian, BBC News, Financial Times, The Times, The Independent, i and The Daily Telegraph**. Each is shown as that paper's own front: its lead story and its other top stories, under its own nameplate.
+Nine papers rotate, one every 3 minutes by default, balanced around the centre:
+- left of centre: **The Guardian**, **The New World**
+- centre: **BBC News**, **Financial Times**, **i**, **The Economist**
+- right of centre: **The Times**, **The Daily Telegraph**, **The Spectator**
+
+The Independent is supported but off by default. Each is shown as that paper's own front: its lead story and its other top stories, under its own nameplate. The weeklies (The New World, The Economist, The Spectator) use their **daily web stories**, styled as their own paper.
 
 Two **locked editions** a day: **morning (06:00)** and **evening (16:00)**. Nothing changes between locks except the weather. Overnight, the evening edition stays up until the morning one.
 
@@ -15,8 +20,9 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Paper | Order (the "front") | Body text |
 |---|---|---|
 | Guardian | Content API editors' picks | Content API |
-| BBC, Independent, i, Telegraph | Homepage order, found by article URL pattern; RSS order as fallback | The article page a normal visitor gets (JSON-LD `articleBody`, then trafilatura) |
+| BBC, i, Telegraph, New World, Spectator (and Independent if enabled) | Homepage order, found by article URL pattern; RSS order as fallback | The article page a normal visitor gets (JSON-LD `articleBody`, then trafilatura) |
 | FT, The Times | Homepage headlines | **Morning edition:** OCR of the published printed front page (opening of the splash, up to "Continued on page N"). Otherwise headline and standfirst only |
+| The Economist | Homepage headlines | Headline and rubric only (paywalled); no print OCR (weekly) |
 
 - **Morning edition:** PA's nightly "What the papers say" round-up identifies each paper's **printed splash**, which is matched to that paper's web article (`print_front`, labelled "Today's front page").
 - **The publisher's own free flag rules:** if an article is marked paid (`isAccessibleForFree: false`, or a gated `hasPart`), no body text is shown, whatever the extractor found. There is no paywall circumvention of any kind.
@@ -27,7 +33,7 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Path | |
 |---|---|
 | `/edition` | The paper for the current rotation slot, from the current locked edition |
-| `/edition/<paper>` | A specific paper: `guardian bbc ft times indy i telegraph` |
+| `/edition/<paper>` | A specific paper: `guardian bbc ft times i telegraph newworld economist spectator indy` |
 | `/demo/<state>.json` | Fixed demo states: one per paper, plus `ft-print`, `long-headline`, `no-image`, `cached` |
 | `/healthz` | Build status per paper for the current edition; also runs a build tick |
 | `/static/fonts/*`, `/img/*`, `/qr/*` | Fonts, processed photos and QR codes for the template |
@@ -38,8 +44,8 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 |---|---|---|
 | `GUARDIAN_API_KEY` | — | Free Developer key from open-platform.theguardian.com (non-commercial) |
 | `PUBLIC_BASE_URL` | `http://192.168.68.111:3461` | What the template uses to load fonts and images |
-| `ROTATION` | `guardian,bbc,ft,times,indy,i,telegraph` | Equal weights; list a paper twice to weight it |
-| `SLOT_MINUTES` | `20` | Minutes per paper; match the Kindle refresh interval |
+| `ROTATION` | `guardian,bbc,ft,times,i,telegraph,newworld,economist,spectator` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
+| `SLOT_MINUTES` | `3` | Minutes per paper (2–5 intended); match the Kindle refresh interval |
 | `AM_LOCK` / `PM_LOCK` | `06:00` / `16:00` | Europe/London wall-clock time |
 | `PIN` | — | Show one paper only |
 | `WEATHER_LAT/LON/LABEL` | Bristol | One keyless Open-Meteo call an hour |

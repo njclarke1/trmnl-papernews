@@ -48,8 +48,14 @@ def test_rotation_is_stable_within_a_slot_and_advances(monkeypatch):
     b, _ = clock.rotation_paper(at("2026-10-21 10:19"), allp)
     c, _ = clock.rotation_paper(at("2026-10-21 10:20"), allp)
     assert a == b and c != a
-    seen = {clock.rotation_paper(at(f"2026-10-21 {10 + m // 60:02d}:{m % 60:02d}"), allp)[0] for m in range(0, 140, 20)}
-    assert seen == set(allp)                    # equal weights: each paper once per 7 slots
+    seen = {clock.rotation_paper(at(f"2026-10-21 {10 + m // 60:02d}:{m % 60:02d}"), allp)[0]
+            for m in range(0, 20 * len(allp), 20)}
+    assert seen == set(allp)                    # equal weights: each paper once per cycle
+
+
+def test_default_rotation_is_the_balanced_nine():
+    assert config.ROTATION == ["guardian", "bbc", "ft", "times", "i", "telegraph", "newworld", "economist", "spectator"]
+    assert config.SLOT_MINUTES == 3 and "indy" not in config.ROTATION
 
 
 def test_rotation_skips_missing_and_pin(monkeypatch):

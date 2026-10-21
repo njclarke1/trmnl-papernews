@@ -23,8 +23,12 @@ RETRY_WINDOW_MIN = int(_env("RETRY_WINDOW_MIN", "60"))
 RETRY_EVERY_MIN = int(_env("RETRY_EVERY_MIN", "5"))
 
 # Rotation: equal weights; one paper per slot
-ROTATION = [p.strip() for p in _env("ROTATION", "guardian,bbc,ft,times,indy,i,telegraph").split(",") if p.strip()]
-SLOT_MINUTES = int(_env("SLOT_MINUTES", "20"))
+from .papers import DEFAULT_ROTATION, PAPERS  # noqa: E402
+
+ROTATION = [p.strip() for p in _env("ROTATION", DEFAULT_ROTATION).split(",") if p.strip() in PAPERS]
+# minutes per paper; 2–5 intended. Content only changes at the two edition locks, so a short slot
+# just cycles through papers faster. Match the Kindle's refresh interval.
+SLOT_MINUTES = max(1, int(_env("SLOT_MINUTES", "3")))
 PIN = _env("PIN")                        # lock the display to one paper
 
 # Sources

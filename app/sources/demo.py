@@ -100,6 +100,31 @@ EDITIONS: dict[str, Edition] = {
          S("Curfews across French cities after nights of rioting", "Europe"),
          S("Chancellor rules out a capital gains tax rise", "Economy")],
         note="Print splash · telegraph.co.uk"),
+    "newworld": Edition("newworld", "web_front", Story(
+        "Europe’s streets erupt as cost-of-living anger spreads from Paris to Milan",
+        "Curfews in France and troops in Italy: why the protests matter for Britain’s relationship with its neighbours",
+        [], "Foreign staff", "Europe", "https://www.thenewworld.co.uk/", ASTRO, "Test photograph"),
+        [S("The Thames Water saga shows the limits of privatisation", "Britain"),
+         S("Inside the race to rebuild Ukraine’s power grid before winter", "Ukraine"),
+         S("What a Budget without a tax rise on capital gains really means", "Economy")],
+        note="thenewworld.co.uk · homepage order"),
+    "economist": Edition("economist", "web_front", Story(
+        "France’s debt troubles are back, and this time the streets are angry",
+        "Curfews, riots and a widening bond spread put Emmanuel Macron’s government under fresh strain",
+        [], "Paris", "Europe", "https://www.economist.com/", COFFEE, "Test photograph", is_free=False),
+        [S("Britain’s water industry needs more than a rescue", "Britain"),
+         S("America resumes intelligence-sharing with Ukraine", "United States"),
+         S("Why central banks are pausing rate cuts", "Finance & economics"),
+         S("The quiet return of industrial policy in Europe", "Business")],
+        note="economist.com · headlines (articles paywalled)"),
+    "spectator": Edition("spectator", "web_front", Story(
+        "Labour’s defence cuts expose the gap between rhetoric and reality",
+        "Ministers promised more for the armed forces. The Boxer decision tells a different story",
+        [], "Political staff", "Politics", "https://www.spectator.co.uk/", CAT, "Test photograph"),
+        [S("Kemi Badenoch’s warning on the Budget", "Politics"),
+         S("France is learning what happens when the money runs out", "Europe"),
+         S("Is the NHS ready for winter? Nobody believes it", "Health")],
+        note="spectator.co.uk · homepage order"),
 }
 
 
