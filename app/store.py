@@ -25,24 +25,30 @@ def _write(path: pathlib.Path, data: dict) -> None:
 def _read(path: pathlib.Path) -> dict | None:
     try:
         return json.loads(path.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (OSError, ValueError):                 # missing, unreadable, truncated or not UTF-8
         return None
 
 
 def save_edition(slot_id: str, ed: Edition) -> None:
     _write(_root() / "editions" / slot_id / f"{ed.paper}.json", ed.to_dict())
-    if not ed.stale:
+    if not ed.stale and not config.DEMO_MODE:   # made-up demo copy must never be carried as news
         _write(_root() / "lastgood" / f"{ed.paper}.json", ed.to_dict())
 
 
+def _edition(path: pathlib.Path) -> Edition | None:
+    d = _read(path)
+    try:
+        return Edition.from_dict(d) if d else None
+    except (TypeError, KeyError, AttributeError):      # format changed beyond repair: treat as absent
+        return None
+
+
 def load_edition(slot_id: str, paper: str) -> Edition | None:
-    d = _read(_root() / "editions" / slot_id / f"{paper}.json")
-    return Edition.from_dict(d) if d else None
+    return _edition(_root() / "editions" / slot_id / f"{paper}.json")
 
 
 def last_good(paper: str) -> Edition | None:
-    d = _read(_root() / "lastgood" / f"{paper}.json")
-    return Edition.from_dict(d) if d else None
+    return _edition(_root() / "lastgood" / f"{paper}.json")
 
 
 def save_state(slot_id: str, state: dict) -> None:

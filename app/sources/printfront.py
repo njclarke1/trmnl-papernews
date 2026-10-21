@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup
 from PIL import Image
 
 from .. import config, store
-from ..model import Story
+from ..model import Story, story_from
 from ..papers import Paper
 from .base import Http, SourceUnavailable
 
@@ -47,23 +47,30 @@ def splash(http: Http, paper: Paper, day: date, expected_headline: str = "",
     so a bad image is OCR'd once, not on every retry."""
     if not (paper.print_front and config.OCR_ENABLED):
         return None
-    key = f"{paper.key}-{day.isoformat()}"
+    # a result made without the PA cross-check must not block a checked run once the round-up arrives
+    key = f"{paper.key}-{day.isoformat()}-{'checked' if (expected_headline or expected_standfirst) else 'unchecked'}"
     cached = store.cache_get("ocr", key)
     if cached is not None:
-        return (Story(**cached["story"]), cached.get("continued")) if cached.get("story") else None
+        return (story_from(cached["story"]), cached.get("continued")) if cached.get("story") else None
     try:
         url = find_image(http, paper, day)
         if not url:
             return None                      # not published yet: no cache entry, so retries look again
-        img = Image.open(io.BytesIO(http.get(url, binary=True).content))
-    except (SourceUnavailable, OSError):
+        raw = http.get(url, binary=True).content
+    except SourceUnavailable:
+        return None                          # transient: no cache entry, retries look again
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img.load()                           # decode now, so a truncated/bomb image fails here
+        if img.width < MIN_WIDTH:
+            store.cache_put("ocr", key, {"story": None, "why": f"image only {img.width}px wide"})
+            return None
+        from ..ocr.splash import extract_splash
+        r = extract_splash(img, paper_name=paper.name, expected_headline=expected_headline,
+                           expected_standfirst=expected_standfirst)
+    except Exception as e:                   # any decode/OCR failure ⇒ summary layout, never a failed paper
+        store.cache_put("ocr", key, {"story": None, "why": f"{type(e).__name__}: {e}"})
         return None
-    if img.width < MIN_WIDTH:
-        store.cache_put("ocr", key, {"story": None, "why": f"image only {img.width}px wide"})
-        return None
-    from ..ocr.splash import extract_splash
-    r = extract_splash(img, paper_name=paper.name, expected_headline=expected_headline,
-                       expected_standfirst=expected_standfirst)
     if not r.ok:
         store.cache_put("ocr", key, {"story": None, "why": r.reason, "headline_seen": r.headline})
         return None

@@ -256,7 +256,7 @@ for key, r in results.items():
     if key.startswith("_"): continue
     lines.append(f"## {key}\n\n**Homepage order (first 5):**")
     lines += [f"{i+1}. {l['text'] or '(no text)'} — `{l['url']}`" for i, l in enumerate(r["home_links"][:5])]
-    lines.append(f"\n**RSS first 3:** " + " · ".join(i["title"] for i in r["rss_items"][:3]))
+    lines.append("\n**RSS first 3:** " + " · ".join(i["title"] for i in r["rss_items"][:3]))
     for a in r["articles"]:
         lines.append(f"\n- `{a.get('url')}` → {a.get('status')}, free={a.get('isAccessibleForFree')}, "
                      f"jsonld={a.get('body_jsonld_chars')} chars, extracted={a.get('body_trafilatura_chars')} chars, "

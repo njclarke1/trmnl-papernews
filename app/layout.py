@@ -20,7 +20,7 @@ def choose(ed: Edition, paper: Paper) -> str:
     if lead.is_free is not False and lead.body_chars >= config.MIN_BODY_CHARS:
         return "full"
     # print fronts carry a shorter opening (300–500 words) but are complete to the jump
-    if ed.kind == "print_front" and lead.paragraphs and lead.body_chars >= 900:
+    if ed.kind == "print_front" and lead.is_free is not False and lead.paragraphs and lead.body_chars >= 900:
         return "full"
     layout = paper.fallback_layout
     if layout in NEEDS_IMAGE and not lead.image_url:

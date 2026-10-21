@@ -33,8 +33,7 @@ def create_app(builder: Builder | None = None, background: bool = True) -> Flask
     def _payload(paper: str | None):
         at = clock.now()
         slot, ed, preparing = b.current(at, paper)
-        idx = config.ROTATION.index(ed.paper) if ed and ed.paper in config.ROTATION else 0
-        return payload.build(ed, slot, weather=weather.current(), rotation_index=idx, preparing=preparing)
+        return payload.build(ed, slot, weather=weather.current(), preparing=preparing)
 
     @app.get("/edition")
     def edition():
@@ -55,14 +54,13 @@ def create_app(builder: Builder | None = None, background: bool = True) -> Flask
         ed.layout = ed.layout or layout.choose(ed, PAPERS[ed.paper])
         ed.image = b.build_image(ed)
         slot = clock.edition_for(clock.now())
-        idx = config.ROTATION.index(ed.paper) if ed.paper in config.ROTATION else 0
         w = {"label": config.WEATHER_LABEL, "temp": "12°", "hi": "14°", "lo": "6°", "icon": "partly", "night": False,
              "text": "Partly cloudy", "glyph": "partly"}
-        return jsonify(payload.build(ed, slot, weather=w, rotation_index=idx))
+        return jsonify(payload.build(ed, slot, weather=w))
 
     @app.get("/healthz")
     def healthz():
-        status = b.tick() or {}
+        status = b.status()
         return jsonify({"ok": True, "now": clock.now().isoformat(timespec="seconds"),
                         "edition": clock.edition_for(clock.now()).id, **status})
 

@@ -95,7 +95,7 @@ class WebAdapter:
             lead.url = lead.url or hint.url
             kind = "print_front"
         else:
-            lead = _merge(read_article(self.http, cands[0].url), cands[0]) if cands[0].url else cands[0]
+            lead = _merge(read_article(self.http, cands[0].url, max_age_h=0), cands[0]) if cands[0].url else cands[0]
             cands = cands[1:]
         if lead.live and lead.body_chars < 1500:
             lead.paragraphs = []                          # live blogs: summary layout, not a wall of updates

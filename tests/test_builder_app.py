@@ -2,18 +2,17 @@ import html
 import json
 import pathlib
 import re
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import pytest
 from liquid import Environment
 
-from app import builder as builder_mod, clock, config, payload, store
+from app import clock, config, payload, store
 from app.builder import Builder
 from app.main import create_app
-from app.model import Edition, Story
 from app.sources import demo
 from app.sources.base import ShapeError, SourceUnavailable
+from conftest import FIX, FakeHttp, Resp
 
 L = clock.LONDON
 TEMPLATE = (pathlib.Path(__file__).resolve().parents[1] / "plugin/full.liquid").read_text()
@@ -109,7 +108,9 @@ def test_one_crashing_paper_does_not_stop_the_edition(fast, monkeypatch):
 @pytest.fixture
 def demo_app(monkeypatch):
     monkeypatch.setattr(config, "DEMO_MODE", True)
-    return create_app(background=False).test_client()
+    b = Builder()
+    b.tick()                                   # what the background thread does in production
+    return create_app(b, background=False).test_client()
 
 
 @pytest.mark.parametrize("state", list(demo.states()))
@@ -159,3 +160,132 @@ def test_print_front_labels(demo_app):
     assert d["lead"]["kind"] == "Today’s front page" and "page 4" in d["lead"]["jump"]
     d = demo_app.get("/demo/ft.json").get_json()
     assert d["lead"]["kind"] == "The lead" and d["rail_grid"] is True
+
+
+# ---------------------------------------------------------------- review follow-ups
+def test_retry_spacing_uses_the_edition_clock(monkeypatch):
+    monkeypatch.setattr(config, "RETRY_EVERY_MIN", 5)
+    b = Scripted({"ft": "down"})
+    b.tick(at("2026-10-21 06:01"))
+    b.tick(at("2026-10-21 06:04"))                      # too soon: no retry
+    assert b.calls.count("ft") == 1
+    b.tick(at("2026-10-21 06:07"))
+    assert b.calls.count("ft") == 2
+
+
+def test_late_start_gets_a_full_retry_window(fast):
+    Scripted({}).tick(at("2026-10-20 16:01"))
+    b = Scripted({"bbc": "down"})
+    b.tick(at("2026-10-21 08:00"))                      # NAS rebooted long after the lock
+    assert store.load_state("2026-10-21-am")["bbc"]["status"] == "failed"   # not carried after one try
+    b.script["bbc"] = "ok"
+    b.tick(at("2026-10-21 08:30"))
+    assert store.load_state("2026-10-21-am")["bbc"]["status"] == "ok"
+    b2 = Scripted({"times": "down"})                   # evening edition, started at 18:00
+    b2.tick(at("2026-10-21 18:00")); b2.tick(at("2026-10-21 18:59"))
+    assert store.load_state("2026-10-21-pm")["times"]["status"] == "failed"   # window runs from 18:00
+    b2.tick(at("2026-10-21 19:05"))
+    assert store.load_state("2026-10-21-pm")["times"]["status"] == "carried"
+
+
+def test_restart_never_rebuilds_a_locked_edition(fast):
+    b = Scripted({})
+    slot = clock.edition_for(at("2026-10-21 06:01"))
+    ed = demo.edition("guardian"); ed.built_at = "ORIGINAL"; ed.layout = "summary"
+    store.save_edition(slot.id, ed)                     # written, then the container died before state
+    b.tick(at("2026-10-21 06:02"))
+    assert "guardian" not in b.calls
+    assert store.load_edition(slot.id, "guardian").built_at == "ORIGINAL"
+
+
+def test_state_saved_after_each_paper(fast, monkeypatch):
+    saves = []
+    real = store.save_state
+    monkeypatch.setattr(store, "save_state", lambda sid, st: (saves.append(sid), real(sid, st)))
+    Scripted({}).tick(at("2026-10-21 06:01"))
+    assert len(saves) >= len(set(config.ROTATION))
+
+
+def test_healthz_is_read_only(monkeypatch):
+    calls = []
+    monkeypatch.setattr(Builder, "tick", lambda self, at=None: calls.append(1) or {})
+    c = create_app(background=False).test_client()
+    h = c.get("/healthz").get_json()
+    assert h["ok"] and calls == [] and "papers" in h
+
+
+def test_demo_mode_never_writes_last_good(monkeypatch, data_dir):
+    monkeypatch.setattr(config, "DEMO_MODE", True)
+    Builder().tick(at("2026-10-21 06:01"))
+    assert not (data_dir / "lastgood").exists()
+
+
+def test_file_urls_refused_outside_demo():
+    with pytest.raises(SourceUnavailable):
+        Builder()._raw("file:///etc/passwd")
+
+
+def test_payload_never_shows_paid_paragraphs():
+    ed = demo.edition("guardian"); ed.lead.is_free = False; ed.layout = "full"
+    p = payload.build(ed, clock.edition_for(at("2026-10-21 07:00")))
+    assert p["layout"] != "full" and json.loads(html.unescape(p["lead"]["flow_json"])) == []
+
+
+def test_dots_one_per_paper_even_when_weighted(monkeypatch):
+    monkeypatch.setattr(config, "ROTATION", ["guardian", "bbc", "guardian", "ft"])
+    p = payload.build(demo.edition("guardian"), clock.edition_for(at("2026-10-21 07:00")))
+    assert len(p["dots"]) == 3 and [d["on"] for d in p["dots"]] == [True, False, False]
+
+
+def test_old_edition_files_still_load(data_dir):
+    path = data_dir / "editions" / "2026-10-21-am"; path.mkdir(parents=True)
+    d = demo.edition("bbc").to_dict(); d["retired_field"] = 1; d["lead"]["also_retired"] = "x"
+    (path / "bbc.json").write_text(json.dumps(d))
+    (path / "ft.json").write_bytes(b"\xff\xfe not json")
+    assert store.load_edition("2026-10-21-am", "bbc").paper == "bbc"
+    assert store.load_edition("2026-10-21-am", "ft") is None
+
+
+# ---------------------------------------------------------------- the real build path, end to end
+PA = """<p>The Financial Times reports riots have reignited a French debt rout, with borrowing costs and
+curfews spreading as Macron struggles to restore order.</p><p>The Guardian leads on Thames Water.</p>"""
+
+
+def ft_routes(front_image: bytes):
+    links = "".join(f'<a href="/content/{i:08d}-0000-0000-0000-000000000000">Story {i}</a>' for i in range(1, 7))
+    paid = lambda h: ('<html><head><script type="application/ld+json">' + json.dumps({"@graph": [
+        {"@type": "WebPage", "isAccessibleForFree": False}, {"@type": "NewsArticle", "headline": h,
+         "description": "Standfirst", "articleBody": "secret paid text " * 200}]}) + "</script></head><body></body></html>")
+    return {
+        "https://www.expressandstar.com/uk-news/what-the-papers-say-october-21": PA,
+        "https://www.expressandstar.com/uk-news/": '<a href="/uk-news/what-the-papers-say-october-21-123">x</a>',
+        "https://www.frontpages.com/financial-times": '<meta property="og:image" content="https://www.frontpages.com/g/2026/10/21/ft.jpg">',
+        "https://www.frontpages.com/g/": Resp("img", content=front_image),
+        "https://www.ft.com/rss": "<rss><channel></channel></rss>",
+        "https://www.ft.com/content/00000001": paid("Riots reignite French debt rout as Macron struggles to restore order"),
+        "https://www.ft.com/content/": paid("Another FT story"),
+        "https://www.ft.com": f"<html><body><a href='/content/00000001-0000-0000-0000-000000000000'>Riots reignite French debt rout as Macron struggles to restore order</a>{links}</body></html>",
+    }
+
+
+@pytest.mark.skipif(__import__("shutil").which("tesseract") is None, reason="tesseract not installed")
+def test_ft_morning_edition_from_printed_front():
+    b = Builder(FakeHttp(ft_routes((FIX / "fronts" / "ft-1400.jpg").read_bytes())))
+    ed = b.build_one(clock.edition_for(at("2026-10-21 06:01")), "ft")
+    assert ed.kind == "print_front" and ed.layout == "full" and ed.continued_page == 4
+    assert "Investors" in ed.lead.paragraphs[0] and "secret" not in " ".join(ed.lead.paragraphs)
+    assert ed.lead.url.startswith("https://www.ft.com/content/00000001")     # QR links to the matched article
+    assert all("secret" not in " ".join(s.paragraphs) for s in ed.rail)
+
+
+def test_ft_evening_edition_is_headlines_only():
+    b = Builder(FakeHttp(ft_routes(b"")))
+    ed = b.build_one(clock.edition_for(at("2026-10-21 16:01")), "ft")
+    assert ed.kind == "web_front" and ed.lead.paragraphs == [] and ed.layout == "briefing"
+
+
+def test_truncated_front_image_falls_back_to_summary():
+    raw = (FIX / "fronts" / "ft-1400.jpg").read_bytes()[:20000]
+    b = Builder(FakeHttp(ft_routes(raw)))
+    ed = b.build_one(clock.edition_for(at("2026-10-21 06:01")), "ft")
+    assert ed.lead.paragraphs == [] and ed.layout != "full"

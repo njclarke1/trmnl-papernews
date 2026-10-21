@@ -6,7 +6,7 @@ each image so tests can score recall (splash words found) and precision (no othe
 
     python tools/make_synthetic_fronts.py        # writes tests/fixtures/fronts/*.jpg + *.json
 """
-import io, json, pathlib, random
+import io, json, pathlib
 from PIL import Image, ImageFilter
 from playwright.sync_api import sync_playwright
 
@@ -24,6 +24,8 @@ SPLASH_FT = dict(
         "Analysts said the unrest had made it harder for the prime minister to pass a budget that would reassure markets about the trajectory of public debt, which is forecast to keep rising next year.",
         "Officials insisted that public finances remained under control and that spending plans would be presented to parliament as scheduled, despite calls from opposition parties to delay the vote.",
         "Bank shares also fell sharply, with the largest lenders losing between four and six per cent, while the euro weakened against the dollar and sterling in afternoon trading in London.",
+        "Fund managers said they had cut their holdings of French debt in recent weeks, warning that a failure to pass the budget could prompt rating agencies to downgrade the country again.",
+        "The finance ministry said it would not change its deficit target for next year, and that the measures already announced would be enough to stabilise the ratio of debt to national output.",
     ],
     page=4)
 OTHER_FT = [
@@ -42,6 +44,9 @@ SPLASH_TIMES = dict(
         "Ministers confirmed in answers to parliament that almost two billion pounds had been removed from the programme, which was meant to form the backbone of the mechanised infantry.",
         "Senior officers said the decision would leave units without specialist vehicles for several years, while the Ministry of Defence said the requirement would be met in other ways.",
         "The opposition said the cuts showed the government was not serious about defence, weeks after promising to raise spending as a share of national income.",
+        "The vehicle was ordered as a family of variants that would share parts and training. Dropping three of them means older vehicles must stay in service for longer than planned.",
+        "Defence sources said the savings would be spent on drones, air defence and long-range missiles, which ministers regard as the main lesson of the war in Ukraine.",
+        "A former head of the army said the service was being asked to do more with less, and warned that it could no longer send a full division abroad at short notice.",
     ],
     page=6)
 OTHER_TIMES = [

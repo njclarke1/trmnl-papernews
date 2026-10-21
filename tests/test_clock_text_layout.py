@@ -104,3 +104,10 @@ def test_layout_fallbacks():
     assert layout.choose(ed(paper="bbc", rail_sf=True), PAPERS["bbc"]) == "bulletin"
     assert layout.choose(ed(paper="bbc"), PAPERS["bbc"]) == "summary"     # no summaries for a bulletin
     assert layout.choose(ed(paper="i"), PAPERS["i"]) == "briefing"
+
+
+def test_weather_codes_and_night_glyph():
+    from app import weather
+    assert weather.describe(0) == ("clear", "Clear") and weather.describe(63)[0] == "rain"
+    assert weather.describe(999)[0] == "cloud"
+    assert weather.glyph("clear", True) == "moon" and weather.glyph("rain", True) == "rain"

@@ -178,3 +178,25 @@ def test_printfront_small_image_cached_as_failure(monkeypatch):
     n = len(http.calls)
     assert printfront.splash(http, PAPERS["ft"], date(2026, 10, 21)) is None
     assert len(http.calls) == n                 # cached: not fetched or OCR'd again
+
+
+def test_paid_flag_on_another_jsonld_node_counts():
+    page = ('<html><head><script type="application/ld+json">' + json.dumps({"@graph": [
+        {"@type": "WebPage", "isAccessibleForFree": False},
+        {"@type": "NewsArticle", "headline": "H", "articleBody": BODY}]}) + "</script></head><body><p>" + BODY + "</p></body></html>")
+    st = read_article(FakeHttp({"https://x/": page}), "https://x/paid")
+    assert st.is_free is False and st.paragraphs == []
+
+
+def test_lead_is_read_fresh_not_from_cache():
+    http = FakeHttp({"https://x/": article("Free then paid")})
+    assert read_article(http, "https://x/a", max_age_h=0).is_free is True
+    http.routes = {"https://x/": article("Free then paid", free=False)}
+    assert read_article(http, "https://x/a", max_age_h=0).is_free is False
+
+
+def test_print_front_paid_is_never_full():
+    from app import layout
+    from app.model import Edition, Story
+    ed = Edition("ft", "print_front", Story("H", "S", ["w " * 600], is_free=False, image_url="http://x/i"), [Story("a")] * 3)
+    assert layout.choose(ed, PAPERS["ft"]) != "full"

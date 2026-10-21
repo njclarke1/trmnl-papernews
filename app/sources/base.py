@@ -12,7 +12,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .. import config, store, text
-from ..model import Story
+from ..model import Story, story_from
 
 
 class SourceUnavailable(Exception):
@@ -60,8 +60,10 @@ ARTICLE_TYPES = {"NewsArticle", "Article", "ReportageNewsArticle", "AnalysisNews
                  "OpinionNewsArticle", "BackgroundNewsArticle"}
 
 
-def jsonld_article(html: str) -> dict:
+def jsonld_nodes(html: str) -> list[dict]:
+    """Every JSON-LD object on the page: all scripts, lists, @graph members and hasPart children."""
     soup = BeautifulSoup(html, "lxml")
+    out: list[dict] = []
     for tag in soup.find_all("script", type="application/ld+json"):
         try:
             data = json.loads(tag.string or "")
@@ -70,26 +72,43 @@ def jsonld_article(html: str) -> dict:
         stack = data if isinstance(data, list) else [data]
         while stack:
             o = stack.pop(0)
+            if isinstance(o, list):
+                stack.extend(o)
+                continue
             if not isinstance(o, dict):
                 continue
-            if isinstance(o.get("@graph"), list):
-                stack.extend(o["@graph"])
-            t = o.get("@type")
-            t = t if isinstance(t, list) else [t]
-            if ARTICLE_TYPES & set(x for x in t if isinstance(x, str)):
-                return o
-    return {}
+            out.append(o)
+            for k in ("@graph", "hasPart", "mainEntity", "mainEntityOfPage"):
+                v = o.get(k)
+                if isinstance(v, (list, dict)):
+                    stack.append(v)
+    return out
 
 
-def _free_flag(o: dict) -> bool | None:
-    v = o.get("isAccessibleForFree")
+def _is_type(o: dict) -> bool:
+    t = o.get("@type")
+    t = t if isinstance(t, list) else [t]
+    return bool(ARTICLE_TYPES & set(x for x in t if isinstance(x, str)))
+
+
+def jsonld_article(html: str) -> dict:
+    return next((o for o in jsonld_nodes(html) if _is_type(o)), {})
+
+
+def _as_bool(v) -> bool | None:
+    if isinstance(v, bool):
+        return v
     if isinstance(v, str):
-        v = v.strip().lower() not in ("false", "0", "no")
-    parts = o.get("hasPart")
-    parts = parts if isinstance(parts, list) else [parts] if parts else []
-    if any(isinstance(p, dict) and str(p.get("isAccessibleForFree")).lower() == "false" for p in parts):
+        return v.strip().lower() not in ("false", "0", "no")
+    return None
+
+
+def page_free_flag(nodes: list[dict], article: dict) -> bool | None:
+    """Paid if ANY node on the page says so (publishers put the flag on WebPage, the article or a
+    hasPart element). Otherwise the article's own flag; None when nobody says (e.g. the BBC)."""
+    if any(_as_bool(o.get("isAccessibleForFree")) is False for o in nodes):
         return False
-    return v if isinstance(v, bool) else None
+    return _as_bool(article.get("isAccessibleForFree"))
 
 
 def _first(v):
@@ -106,16 +125,19 @@ def _image(o: dict, soup: BeautifulSoup) -> str:
     return im or ""
 
 
-def read_article(http: Http, url: str, max_age_h: float = 24) -> Story:
-    """Article metadata + body from the page a normal visitor gets. Cached by URL."""
+def read_article(http: Http, url: str, max_age_h: float = 6) -> Story:
+    """Article metadata + body from the page a normal visitor gets. Cached by URL.
+    Leads are read with max_age_h=0 (always fresh), so an article that turns paid is never
+    shown from an older free copy; the cache only spares repeat fetches of rail stories."""
     key = hashlib.sha1(url.encode()).hexdigest()
-    hit = store.cache_get("article", key)
+    hit = store.cache_get("article", key) if max_age_h > 0 else None
     if hit and time.time() - hit.get("_at", 0) < max_age_h * 3600:
-        return Story(**{k: v for k, v in hit.items() if not k.startswith("_")})
+        return story_from({k: v for k, v in hit.items() if not k.startswith("_")})
     html = http.get(url).text
     soup = BeautifulSoup(html, "lxml")
-    o = jsonld_article(html)
-    free = _free_flag(o)
+    nodes = jsonld_nodes(html)
+    o = next((n for n in nodes if _is_type(n)), {})
+    free = page_free_flag(nodes, o)
     body_ld = text.clean(o.get("articleBody", "")) if o.get("articleBody") else ""
     paras: list[str] = []
     try:

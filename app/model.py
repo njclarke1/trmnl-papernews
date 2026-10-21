@@ -1,7 +1,7 @@
 """Source-neutral model. Adapters produce these; nothing source-specific leaks past them."""
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 
 
 @dataclass
@@ -42,7 +42,14 @@ class Edition:
 
     @staticmethod
     def from_dict(d: dict) -> "Edition":
-        d = dict(d)
-        d["lead"] = Story(**d["lead"])
-        d["rail"] = [Story(**s) for s in d.get("rail", [])]
+        """Tolerant of fields added or removed between versions (stored editions outlive deploys)."""
+        names = {f.name for f in fields(Edition)}
+        d = {k: v for k, v in d.items() if k in names}
+        d["lead"] = story_from(d["lead"])
+        d["rail"] = [story_from(s) for s in d.get("rail", [])]
         return Edition(**d)
+
+
+def story_from(d: dict) -> Story:
+    names = {f.name for f in fields(Story)}
+    return Story(**{k: v for k, v in d.items() if k in names})

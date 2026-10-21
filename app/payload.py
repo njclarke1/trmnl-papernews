@@ -15,21 +15,24 @@ def kicker_kind(kind: str) -> str:
     return {"print_front": "Today’s front page", "web_front": "The lead"}.get(kind, "Latest")
 
 
-def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, rotation_index: int = 0,
-          preparing: bool = False) -> dict:
+def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, preparing: bool = False) -> dict:
     base = {
         "asset_base": config.PUBLIC_BASE_URL,
         "folio": {"date": clock.folio_date(slot.day),          # overnight: yesterday's evening edition keeps its date
                   "issue": f"No. {clock.issue_number(slot.day)}", "edition": slot.label, "place": config.PLACE},
         "weather": weather,
-        "dots": [{"on": i == rotation_index} for i in range(len(config.ROTATION))],
+        "dots": [{"on": k == (ed.paper if ed else None)} for k in dict.fromkeys(config.ROTATION)],
     }
     if ed is None:
         return {**base, "layout": "empty", "message": "The first edition is being prepared."}
 
     p = PAPERS[ed.paper]
     lead = ed.lead
+    if lead.is_free is False:                    # defence in depth: paid text never reaches the template
+        lead.paragraphs = []
     lay = ed.layout or "summary"
+    if lay == "full" and not lead.paragraphs:    # never an empty body zone
+        lay = "summary" if ed.image else "briefing"
     front = ed.kind in ("print_front", "web_front")
     rail = [s for s in ed.rail if s.headline][: RAIL_COUNT.get(lay, 3)]
     if lay == "summary" and len(rail) not in (3, 4):

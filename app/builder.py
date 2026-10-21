@@ -11,7 +11,7 @@ import logging
 import pathlib
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from . import clock, config, images, layout, store
 from .model import Edition
@@ -45,7 +45,11 @@ class Builder:
 
     def _raw(self, url: str) -> bytes:
         if url.startswith("file://"):
+            if not config.DEMO_MODE:               # scraped image URLs must never read local files
+                raise SourceUnavailable("file:// image outside demo mode")
             return pathlib.Path(url[7:]).read_bytes()
+        if not url.startswith(("http://", "https://")):
+            raise SourceUnavailable(f"unsupported image URL scheme: {url[:20]}")
         return self.http.get(url, binary=True).content
 
     def build_one(self, slot: clock.Slot, key: str) -> Edition:
@@ -90,21 +94,28 @@ class Builder:
     def _tick(self, at: datetime) -> dict:
         slot = clock.edition_for(at)
         state = store.load_state(slot.id)
-        window_end = slot.lock_at + timedelta(minutes=config.RETRY_WINDOW_MIN)
-        changed = False
-        for key in config.ROTATION:
-            st = state.setdefault(key, {"status": "pending", "attempts": 0, "last": 0, "error": ""})
+        now_s = at.timestamp()
+        for key in dict.fromkeys(config.ROTATION):          # a paper listed twice is still built once
+            st = state.setdefault(key, {"status": "pending", "attempts": 0, "first": 0, "last": 0, "error": ""})
             if st["status"] in ("ok", "carried", "missing"):
                 continue
-            if st["attempts"] and at > window_end:
-                self._carry(slot, key, st)
-                changed = True
+            # an edition already on disk is locked, even if a restart lost the state entry
+            if store.load_edition(slot.id, key) is not None:
+                st["status"] = "ok"
+                store.save_state(slot.id, state)
                 continue
-            if time.time() - st["last"] < config.RETRY_EVERY_MIN * 60:
+            # the retry window runs from the lock, or from the first attempt if we started late
+            start = max(slot.lock_at.timestamp(), st.get("first") or now_s)
+            window_end = start + config.RETRY_WINDOW_MIN * 60
+            if st["attempts"] and now_s > window_end:
+                self._carry(slot, key, st)
+                store.save_state(slot.id, state)
+                continue
+            if st["attempts"] and now_s - st["last"] < config.RETRY_EVERY_MIN * 60:
                 continue
             st["attempts"] += 1
-            st["last"] = time.time()
-            changed = True
+            st["first"] = st.get("first") or now_s
+            st["last"] = now_s
             try:
                 ed = self.build_one(slot, key)
                 store.save_edition(slot.id, ed)
@@ -116,11 +127,13 @@ class Builder:
             except Exception as e:                          # never let one paper break the edition
                 st.update(status="failed", error=f"{type(e).__name__}: {e}")
                 log.exception("%s %s crashed", slot.id, key)
-            if st["status"] == "failed" and at > window_end:
-                self._carry(slot, key, st)
-        if changed:
-            store.save_state(slot.id, state)
+            store.save_state(slot.id, state)                # per paper: a restart mid-build loses nothing
         return {"slot": slot.id, "papers": state}
+
+    def status(self, at: datetime | None = None) -> dict:
+        """Read-only view of the current edition's build state (for /healthz)."""
+        slot = clock.edition_for(at or clock.now())
+        return {"slot": slot.id, "papers": store.load_state(slot.id)}
 
     def _carry(self, slot: clock.Slot, key: str, st: dict) -> None:
         prev = store.last_good(key)
@@ -138,7 +151,7 @@ class Builder:
         at = at or clock.now()
         slot = clock.edition_for(at)
         state = store.load_state(slot.id)
-        available = [k for k in config.ROTATION if store.load_edition(slot.id, k) or store.last_good(k)]
+        available = [k for k in dict.fromkeys(config.ROTATION) if store.load_edition(slot.id, k) or store.last_good(k)]
         key = paper or clock.rotation_paper(at, available)[0]
         if key is None:
             return slot, None, True
@@ -148,6 +161,10 @@ class Builder:
             ed = store.last_good(key)
             preparing = state.get(key, {}).get("status") in (None, "pending", "failed")
         return slot, ed, preparing
+
+
+def unique_rotation() -> list[str]:
+    return list(dict.fromkeys(config.ROTATION))
 
 
 def run_background(builder: Builder, every_s: int = 60) -> threading.Thread:

@@ -210,6 +210,7 @@ def extract_splash(img: Image.Image, *, paper_name: str = "", expected_headline:
 
     columns = _columns(body + cont, hb)
     paras: list[str] = []
+    shown: list[Line] = []
     cont_page = None
     cur: list[str] = []
     for col in columns:
@@ -235,6 +236,7 @@ def extract_splash(img: Image.Image, *, paper_name: str = "", expected_headline:
             if cur and indent:
                 paras.append(_join(cur)); cur = []
             cur.append(l.text)
+            shown.append(l)
             prev = l
         if cont_page:
             break
@@ -242,7 +244,7 @@ def extract_splash(img: Image.Image, *, paper_name: str = "", expected_headline:
         paras.append(_join(cur))
     paras = [_clean(p) for p in paras if p.strip()]
 
-    words = [w for col in columns for l in col for w in l.words]
+    words = [w for l in shown for w in l.words]          # only the text that will be displayed
     text = " ".join(paras)
     toks = WORD_RE.findall(text)
     conf = statistics.mean(w.conf for w in words) if words else 0.0
@@ -308,5 +310,5 @@ def _dict_ratio(tokens: list[str]) -> float:
             _SPELL = SpellChecker(language="en")
         known = _SPELL.known(words)
         return sum(w in known for w in words) / len(words)
-    except Exception:                              # dictionary unavailable: don't block on it
-        return 1.0
+    except Exception:                              # dictionary unavailable: fail closed, never pass unchecked text
+        return 0.0

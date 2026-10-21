@@ -52,7 +52,7 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 
 1. Portainer → Stacks → Add stack → Repository: this repo, compose path `docker-compose.yml`. Set the env vars above.
 2. Redeploy with **Re-pull image OFF**. Never run `docker compose` by hand in Portainer's compose directory.
-3. Check: `curl http://192.168.68.111:3461/healthz`. After the next lock, every paper should show `ok`, `carried` or `missing`.
+3. Check: `curl http://192.168.68.111:3461/healthz` (read-only; the background thread builds). After the next lock, every paper should show `ok`, `carried` or `missing`.
 4. LaraPaper: create plugin `trmnl-frontpage`, polling URL `http://192.168.68.111:3461/edition`, and paste `plugin/full.liquid` as its markup.
    - **Re-paste after every change to `full.liquid`**; LaraPaper doesn't pull it from GitHub.
 5. The Kindle must first render at native resolution: see `docs/phase0-kindle.md`.
@@ -63,7 +63,7 @@ To check a state on the panel without waiting for real news, point a second plug
 
 ```bash
 pip install -r requirements-dev.txt && playwright install chromium   # plus: apt install tesseract-ocr
-pytest -q                                   # 64 tests; OCR tests skip without tesseract
+pytest -q                                   # 86 tests (~4 min); OCR tests skip without tesseract
 python tools/render_harness.py              # every demo state → out/harness/*.png (16 greys) + report.json
 python tools/make_synthetic_fronts.py       # regenerate OCR test fronts
 ```

@@ -4,7 +4,9 @@ from __future__ import annotations
 import hashlib
 import io
 import math
+import os
 import pathlib
+import tempfile
 
 import numpy as np
 import qrcode
@@ -13,6 +15,13 @@ from PIL import Image, ImageOps
 from . import config
 
 SIZES = {"full": (558, 360), "wide": (1156, 820), "side": (470, 320)}
+
+
+def _save_atomic(img: Image.Image, path: pathlib.Path) -> None:
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    os.close(fd)
+    img.save(tmp, format="PNG")
+    os.replace(tmp, path)
 
 
 def _dir(kind: str) -> pathlib.Path:
@@ -60,7 +69,7 @@ def cached_photo(url: str, raw_fetch, size_key: str) -> str | None:
     path = _dir("img") / name
     if not path.exists():
         try:
-            process(raw_fetch(url), size).save(path)
+            _save_atomic(process(raw_fetch(url), size), path)
         except Exception:
             return None
     return f"{config.PUBLIC_BASE_URL}/img/{name}"
@@ -75,5 +84,5 @@ def qr_url(target: str) -> str | None:
         q = qrcode.QRCode(border=0, box_size=6, error_correction=qrcode.constants.ERROR_CORRECT_M)
         q.add_data(target)
         q.make(fit=True)
-        q.make_image(fill_color="black", back_color="white").convert("L").save(path)
+        _save_atomic(q.make_image(fill_color="black", back_color="white").convert("L"), path)
     return f"{config.PUBLIC_BASE_URL}/qr/{name}"

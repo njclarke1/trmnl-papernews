@@ -3,7 +3,7 @@
 URL patterns and feeds are best guesses until the Phase 1 probe (tools/probe_bodies.py) has run on
 the NAS; fix them from the probe's saved raw HTML, not from memory.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
