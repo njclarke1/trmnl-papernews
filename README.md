@@ -1,4 +1,6 @@
-# trmnl-frontpage
+# papernews
+
+*(repo `njclarke1/trmnl-papernews`; container `trmnl-frontpage-api`)*
 
 A newspaper front page for a jailbroken Kindle Paperwhite (11th gen, 1236×1648, 16 greys) running TRMNL through KOReader, served by a self-hosted LaraPaper.
 
