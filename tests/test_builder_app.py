@@ -272,7 +272,7 @@ def ft_routes(front_image: bytes):
 def test_ft_morning_edition_from_printed_front():
     b = Builder(FakeHttp(ft_routes((FIX / "fronts" / "ft-1400.jpg").read_bytes())))
     ed = b.build_one(clock.edition_for(at("2026-10-21 06:01")), "ft")
-    assert ed.kind == "print_front" and ed.layout == "full" and ed.continued_page == 4
+    assert ed.kind == "print_front" and ed.layout == "full" and ed.continued_page == "4"
     assert "Investors" in ed.lead.paragraphs[0] and "secret" not in " ".join(ed.lead.paragraphs)
     assert ed.lead.url.startswith("https://www.ft.com/content/00000001")     # QR links to the matched article
     assert all("secret" not in " ".join(s.paragraphs) for s in ed.rail)

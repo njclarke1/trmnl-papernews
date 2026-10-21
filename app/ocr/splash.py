@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 from PIL import Image, ImageOps
 
-CONTINUED_RE = re.compile(r"continued\s+on\s+(?:page\s+)?(\d{1,2})", re.I)
+CONTINUED_RE = re.compile(r"continued\s+on\s+(?:page\s+)?([A-Z]?\d{1,2})\b", re.I)
 WORD_RE = re.compile(r"[A-Za-z][A-Za-z'’-]*")
 STOP = set("a an and are as at be but by for from has have he her his in is it its of on or that the their this "
            "to was were which will with would after over under into than then there they not also been".split())
@@ -64,7 +64,7 @@ class SplashResult:
     deck: str = ""
     byline: str = ""
     paragraphs: list[str] = field(default_factory=list)
-    continued_page: int | None = None
+    continued_page: str | None = None          # "4", or "A8" for the NYT
     words: int = 0
     mean_conf: float = 0.0
     dict_ratio: float = 0.0
@@ -196,10 +196,12 @@ def extract_splash(img: Image.Image, *, paper_name: str = "", expected_headline:
     byline = _clean(" ".join(l.text for l in by_lines))
     body_floor = y
 
-    # body: body-sized lines under the headline, inside its horizontal span
+    # body: body-sized lines under the headline, inside its horizontal span. Tesseract's box height
+    # for a short line swings with its ascenders/descenders (a rendered PDF put "Investors dumped
+    # French" at 1.28× body), so allow 1.4× here: the deck has already been taken out above.
     tol = 1.5 * hb
-    body = [l for l in lines if l.y0 >= body_floor - 2 and 0.8 * hb <= l.h <= 1.25 * hb
-            and l.x0 >= hx0 - tol and l.x1 <= hx1 + tol and l not in by_lines]
+    body = [l for l in lines if l.y0 >= body_floor - 2 and 0.8 * hb <= l.h <= 1.4 * hb
+            and l.x0 >= hx0 - tol and l.x1 <= hx1 + tol and l not in by_lines and l not in deck_lines]
     # include the continuation line even if it is set in a different size
     cont = [l for l in lines if CONTINUED_RE.search(l.text) and l.y0 >= body_floor and hx0 - tol <= l.cx <= hx1 + tol]
     if not body:
@@ -224,7 +226,7 @@ def extract_splash(img: Image.Image, *, paper_name: str = "", expected_headline:
                 break                                   # big gap: the story has ended in this column
             m = CONTINUED_RE.search(l.text)
             if m:
-                cont_page = int(m.group(1)); break
+                cont_page = m.group(1).upper(); break
             # a heading-sized line between body lines means a new story
             between = [x for x in lines if prev is not None and prev.y1 <= x.y0 < l.y0 and x.h > 1.5 * hb
                        and x.x0 < l.x1 and x.x1 > l.x0]

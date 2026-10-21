@@ -19,6 +19,7 @@ from .papers import PAPERS
 from .sources import demo, papers_review, printfront
 from .sources.base import Http, ShapeError, SourceUnavailable
 from .sources.guardian import GuardianAdapter
+from .sources.nyt import NytAdapter
 from .sources.web import WebAdapter
 
 log = logging.getLogger("frontpage")
@@ -68,8 +69,9 @@ class Builder:
                                             expected_standfirst=entry.summary if entry else "")
                     if res:
                         print_lead, cont = res
-                ed = WebAdapter(paper, self.http).build(slot.kind, slot.day.isoformat(), entry, print_lead)
-                ed.continued_page = cont
+                adapter = NytAdapter(self.http) if paper.source == "nyt" else WebAdapter(paper, self.http)
+                ed = adapter.build(slot.kind, slot.day.isoformat(), entry, print_lead)
+                ed.continued_page = cont if ed.kind == "print_front" else None
         ed.built_at = ed.built_at or clock.now().isoformat(timespec="seconds")
         ed.note = ed.note or (paper.note_print if ed.kind == "print_front" and paper.note_print else paper.note_web)
         ed.layout = layout.choose(ed, paper)

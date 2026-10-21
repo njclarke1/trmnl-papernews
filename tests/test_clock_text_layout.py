@@ -53,8 +53,8 @@ def test_rotation_is_stable_within_a_slot_and_advances(monkeypatch):
     assert seen == set(allp)                    # equal weights: each paper once per cycle
 
 
-def test_default_rotation_is_the_balanced_nine():
-    assert config.ROTATION == ["guardian", "bbc", "ft", "times", "i", "telegraph", "newworld", "economist", "spectator"]
+def test_default_rotation_is_the_balanced_ten():
+    assert config.ROTATION == ["guardian", "bbc", "times", "nyt", "ft", "telegraph", "newworld", "economist", "spectator", "i"]
     assert config.SLOT_MINUTES == 3 and "indy" not in config.ROTATION
 
 

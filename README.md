@@ -4,8 +4,8 @@
 
 A newspaper front page for a jailbroken Kindle Paperwhite (11th gen, 1236×1648, 16 greys) running TRMNL through KOReader, served by a self-hosted LaraPaper.
 
-Nine papers rotate, one every 3 minutes by default, balanced around the centre:
-- left of centre: **The Guardian**, **The New World**
+Ten papers rotate, one every 3 minutes by default (a full cycle every 30 minutes), balanced around the centre and interleaved so neighbours differ in leaning:
+- left of centre: **The Guardian**, **The New World**, **The New York Times**
 - centre: **BBC News**, **Financial Times**, **i**, **The Economist**
 - right of centre: **The Times**, **The Daily Telegraph**, **The Spectator**
 
@@ -22,6 +22,7 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Guardian | Content API editors' picks | Content API |
 | BBC, i, Telegraph, New World, Spectator (and Independent if enabled) | Homepage order, found by article URL pattern; RSS order as fallback | The article page a normal visitor gets (JSON-LD `articleBody`, then trafilatura) |
 | FT, The Times | Homepage headlines | **Morning edition:** OCR of the published printed front page (opening of the splash, up to "Continued on page N"). Otherwise headline and standfirst only |
+| The New York Times | Top Stories API (editors' home-page order; free key) | **Morning edition:** OCR of the NYT's own printed front-page PDF (up to "Continued on Page A8"), accepted only if it matches one of the API's top stories. Otherwise headline and abstract only |
 | The Economist | Homepage headlines | Headline and rubric only (paywalled); no print OCR (weekly) |
 
 - **Morning edition:** PA's nightly "What the papers say" round-up identifies each paper's **printed splash**, which is matched to that paper's web article (`print_front`, labelled "Today's front page").
@@ -43,15 +44,16 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Var | Default | |
 |---|---|---|
 | `GUARDIAN_API_KEY` | — | Free Developer key from open-platform.theguardian.com (non-commercial) |
+| `NYT_API_KEY` | — | Free key from developer.nytimes.com (enable the Top Stories API); about 30 calls a day are used |
 | `PUBLIC_BASE_URL` | `http://192.168.68.111:3461` | What the template uses to load fonts and images |
-| `ROTATION` | `guardian,bbc,ft,times,i,telegraph,newworld,economist,spectator` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
+| `ROTATION` | `guardian,bbc,times,nyt,ft,telegraph,newworld,economist,spectator,i` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
 | `SLOT_MINUTES` | `3` | Minutes per paper (2–5 intended); match the Kindle refresh interval |
 | `AM_LOCK` / `PM_LOCK` | `06:00` / `16:00` | Europe/London wall-clock time |
 | `PIN` | — | Show one paper only |
 | `WEATHER_LAT/LON/LABEL` | Bristol | One keyless Open-Meteo call an hour |
 | `IMAGE_MODE` | `halftone` | `halftone` (newsprint dots) or `clean` (Floyd–Steinberg 16 greys) |
 | `FT_TINT` | `0` | `1` gives the FT a light grey page, a nod to the pink paper |
-| `OCR_ENABLED` | `1` | Printed-front OCR for the FT and The Times |
+| `OCR_ENABLED` | `1` | Printed-front OCR for the FT, The Times and the NYT |
 | `DEMO_MODE` | `0` | Serve demo editions instead of fetching |
 
 `RETRY_WINDOW_MIN` (60) and `RETRY_EVERY_MIN` (5) control edition retries. `HOST_PACING_S` (2) sets the minimum gap between requests to one site. `MIN_BODY_CHARS` (1500) is the body length needed for the full layout.
@@ -71,7 +73,7 @@ To check a state on the panel without waiting for real news, point a second plug
 
 ```bash
 pip install -r requirements-dev.txt && playwright install chromium   # plus: apt install tesseract-ocr
-pytest -q                                   # 86 tests (~4 min); OCR tests skip without tesseract
+pytest -q                                   # 102 tests (~5 min); OCR tests skip without tesseract
 python tools/render_harness.py              # every demo state → out/harness/*.png (16 greys) + report.json
 python tools/make_synthetic_fronts.py       # regenerate OCR test fronts
 ```

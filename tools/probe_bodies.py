@@ -3,8 +3,8 @@
 Run on the NAS (residential IP; the dev sandbox cannot reach these sites):
   docker run --rm -v ~/fp-probe:/w -w /w python:3.12-slim sh -c \
     "apt-get -qq update && apt-get -qq install -y tesseract-ocr >/dev/null && \
-     pip -q install requests beautifulsoup4 lxml trafilatura pillow pytesseract && python probe_bodies.py"
-  (front-page images only: append `fronts` to the python command)
+     pip -q install requests beautifulsoup4 lxml trafilatura pillow pytesseract pypdfium2 && python probe_bodies.py"
+  (front-page images only: append `fronts`; NYT API + PDF only: append `nyt`, with -e NYT_API_KEY=...)
 
 Writes ./report.md, ./results.json and ./raw/*.gz (raw responses become test stubs).
 Reads only what each site serves an ordinary visitor. No paywall bypassing.
@@ -244,6 +244,57 @@ def _ocr_url(key, url):
         row["error"] = f"{type(e).__name__}: {e}"
     return row
 
+def nyt_checks():
+    """Top Stories API shape + the NYT's own front-page PDF (today's and tomorrow's dated URLs)."""
+    import datetime as dt, os
+    row = {}
+    key = os.environ.get("NYT_API_KEY", "")
+    if key:
+        try:
+            r = S.get("https://api.nytimes.com/svc/topstories/v2/home.json", params={"api-key": key}, timeout=20)
+            (RAW / "nyt-topstories.json.gz").write_bytes(gzip.compress(r.content.replace(key.encode(), b"KEY")))
+            res = r.json().get("results", []) if r.ok else []
+            row.update(api_status=r.status_code, api_items=len(res),
+                       api_first=[(i.get("section"), i.get("item_type"), i.get("title")) for i in res[:6]],
+                       api_media_widths=sorted({m.get("width") for i in res[:6] for m in i.get("multimedia") or []}))
+        except Exception as e:
+            row["api_error"] = f"{type(e).__name__}: {e}"
+    else:
+        row["api_error"] = "NYT_API_KEY not set (run with -e NYT_API_KEY=...)"
+    for day in (dt.date.today(), dt.date.today() + dt.timedelta(days=1)):
+        url = f"https://static01.nyt.com/images/{day:%Y/%m/%d}/nytfrontpage/scan.pdf"
+        try:
+            r = S.get(url, timeout=30)
+            row[f"pdf_{day}"] = dict(status=r.status_code, bytes=len(r.content), modified=r.headers.get("Last-Modified"))
+            if r.ok and r.content[:5] == b"%PDF-":
+                (RAW / f"nyt-front-{day}.pdf").write_bytes(r.content)
+                try:
+                    import pypdfium2 as pdfium, io
+                    pdf = pdfium.PdfDocument(r.content)
+                    im = pdf[0].render(scale=200 / 72, grayscale=True).to_pil()
+                    im.save(RAW / f"nyt-front-{day}.png")
+                    import pytesseract
+                    d = pytesseract.image_to_data(im, config="--psm 3", output_type=pytesseract.Output.DICT)
+                    words = [(w, float(c)) for w, c in zip(d["text"], d["conf"]) if w.strip() and float(c) >= 0]
+                    good = [w for w, c in words if c >= 80]
+                    row[f"pdf_{day}"].update(size=im.size, ocr_words=len(words), ocr_words_conf80=len(good),
+                                             ocr_mean_conf=round(sum(c for _, c in words) / max(len(words), 1), 1),
+                                             ocr_sample=" ".join(good[:80]))
+                except ImportError:
+                    row[f"pdf_{day}"]["render"] = "pip install pypdfium2 to render"
+        except Exception as e:
+            row[f"pdf_{day}"] = {"error": f"{type(e).__name__}: {e}"}
+    ff = f"https://cdn.freedomforum.org/dfp/pdf{dt.date.today().day}/NY_NYT.pdf"
+    try:
+        r = S.get(ff, timeout=30)
+        row["freedomforum"] = dict(status=r.status_code, bytes=len(r.content), modified=r.headers.get("Last-Modified"))
+    except Exception as e:
+        row["freedomforum"] = {"error": f"{type(e).__name__}: {e}"}
+    return row
+
+if not sys.argv[1:] or "nyt" in sys.argv[1:]:
+    results["_nyt"] = nyt_checks()
+
 if not sys.argv[1:] or "fronts" in sys.argv[1:]:
     results["_front_images"] = {k: front_image(k, s) for k, s in FRONTS.items()}
     results["_front_images"]["times"] = front_image_tp("times", r"\bthe times\b(?!.*(financial|sunday|new york|india))")
@@ -280,6 +331,9 @@ if fi:
     lines += ["", "Rule of thumb (synthetic broadsheet test, 21 Oct): body text OCRs reliably at ≥1200 px wide (98–100% word recall),"
               " is marginal at 1000 px (92–99%) and fails at 800 px. Real fronts also need ≥150 words at ≥80% confidence.", ""]
     lines += [f"**{k} sample:** {v.get('ocr_sample','')[:400]}" for k, v in fi.items()] + [""]
+ny = results.get("_nyt")
+if ny:
+    lines += ["## The New York Times (API + printed-front PDF)", "", "```", json.dumps(ny, indent=1, default=str)[:3000], "```", ""]
 pr = results.get("_papers_review")
 if pr: lines += ["## PA 'What the papers say'", f"index {pr['index_status']}, links {pr['links'][:2]}", ""]
 (OUT / "report.md").write_text("\n".join(lines))

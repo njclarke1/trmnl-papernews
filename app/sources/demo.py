@@ -72,7 +72,7 @@ EDITIONS: dict[str, Edition] = {
         [S("No increase to capital gains tax in the Budget", "Economy"),
          S("Hospitals not ready for winter, leaders warn", "Health"),
          S("Thames Water creditors face losses under new plan", "Business")],
-        continued_page=6, note="Printed front page · text by OCR"),
+        continued_page="6", note="Printed front page · text by OCR"),
     "indy": Edition("indy", "web_front", Story(
         "Curfew imposed to stop France riots as unrest grips Europe",
         "About 2,400 arrested over the weekend as Paris, Lille and Nice impose overnight restrictions, and Italy prepares troops for the streets of Milan",
@@ -99,6 +99,16 @@ EDITIONS: dict[str, Edition] = {
          S("Curfews across French cities after nights of rioting", "Europe"),
          S("Chancellor rules out a capital gains tax rise", "Economy")],
         note="Print splash · telegraph.co.uk"),
+    "nyt": Edition("nyt", "web_front", Story(
+        "France Imposes Curfews as Riots Spread to a Dozen Cities",
+        "The unrest, set off by a pension overhaul, is the most serious test yet of the government’s austerity drive and has rattled European bond markets.",
+        [], "Catherine Porter and Aurelien Breeden", "Europe", "https://www.nytimes.com/", ASTRO, "Test photograph",
+        is_free=False),
+        [S("U.S. Resumes Intelligence Sharing With Ukraine After Pause", "Politics"),
+         S("Fed Signals It Will Hold Rates Steady Through Winter", "Economy"),
+         S("Britain Weighs Nationalizing Its Biggest Water Company", "Europe"),
+         S("A Drought Is Emptying the Reservoirs That Supply Mexico City", "Americas")],
+        note="NYT Top Stories API · editors’ order"),
     "newworld": Edition("newworld", "web_front", Story(
         "Europe’s streets erupt as cost-of-living anger spreads from Paris to Milan",
         "Curfews in France and troops in Italy: why the protests matter for Britain’s relationship with its neighbours",
@@ -135,9 +145,13 @@ def states() -> dict[str, Edition]:
     """Named demo states for /demo/<state>.json: one per paper plus stress cases."""
     out = {k: edition(k) for k in EDITIONS}
     ft = edition("ft")
-    ft.kind, ft.lead.paragraphs, ft.lead.is_free, ft.continued_page = "print_front", FRANCE_FT, True, 4
+    ft.kind, ft.lead.paragraphs, ft.lead.is_free, ft.continued_page = "print_front", FRANCE_FT, True, "4"
     ft.lead.byline, ft.note = "Leila Abboud — Paris", "Printed front page · text by OCR"
     out["ft-print"] = ft
+    ny = edition("nyt")
+    ny.kind, ny.lead.paragraphs, ny.lead.is_free, ny.continued_page = "print_front", FRANCE_FT, True, "A8"
+    ny.note = "Printed front page · text by OCR"
+    out["nyt-print"] = ny
     long = edition("guardian")
     long.lead.headline = ("Chancellor extends fuel duty freeze for another year as borrowing figures come in "
                           "£9bn above forecast and opposition demands answers")

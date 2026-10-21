@@ -14,7 +14,8 @@ services:
     environment:
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://192.168.68.111:3461}
       - GUARDIAN_API_KEY=${GUARDIAN_API_KEY:-}
-      - ROTATION=${ROTATION:-guardian,bbc,ft,times,i,telegraph,newworld,economist,spectator}
+      - NYT_API_KEY=${NYT_API_KEY:-}
+      - ROTATION=${ROTATION:-guardian,bbc,times,nyt,ft,telegraph,newworld,economist,spectator,i}
       - SLOT_MINUTES=${SLOT_MINUTES:-3}
       - AM_LOCK=${AM_LOCK:-06:00}
       - PM_LOCK=${PM_LOCK:-16:00}

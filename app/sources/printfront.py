@@ -1,4 +1,4 @@
-"""Printed front page → splash text by OCR, for papers with no free web text (FT, The Times).
+"""Printed front page → splash text by OCR, for papers with no free web text (FT, The Times, the NYT).
 
 Morning edition only. The image must be tonight's (date checked), at least 1,000 px wide, and the
 extraction must pass every gate in app.ocr.splash; otherwise None and the paper uses summary layout.
@@ -19,9 +19,45 @@ from ..papers import Paper
 from .base import Http, SourceUnavailable
 
 MIN_WIDTH = 1000
+PDF_SCALE = 200 / 72                       # render PDFs at 200 dpi (a broadsheet page ≈ 2,400 px wide)
+
+
+def nyt_pdf(http: Http, day: date) -> str | None:
+    """The NYT publishes its own front page as a PDF at a dated URL; Freedom Forum mirrors it daily
+    at an undated one, so that copy is only trusted if Last-Modified says it is today's."""
+    own = f"https://static01.nyt.com/images/{day:%Y/%m/%d}/nytfrontpage/scan.pdf"
+    try:
+        http.get(own, binary=True, stream=True).close()
+        return own
+    except SourceUnavailable:
+        pass
+    ff = f"https://cdn.freedomforum.org/dfp/pdf{day.day}/NY_NYT.pdf"
+    r = http.get(ff, binary=True, stream=True)
+    r.close()
+    try:
+        from email.utils import parsedate_to_datetime
+        stamp = parsedate_to_datetime(r.headers.get("Last-Modified", ""))
+    except (TypeError, ValueError):
+        return None
+    return ff if abs((stamp.date() - day).days) <= 1 else None
+
+
+def to_image(raw: bytes) -> Image.Image:
+    if raw[:5] == b"%PDF-":
+        import pypdfium2 as pdfium
+        pdf = pdfium.PdfDocument(raw)
+        try:
+            return pdf[0].render(scale=PDF_SCALE, grayscale=True).to_pil()
+        finally:
+            pdf.close()
+    img = Image.open(io.BytesIO(raw))
+    img.load()                             # decode now, so a truncated/bomb image fails here
+    return img
 
 
 def find_image(http: Http, paper: Paper, day: date) -> str | None:
+    if paper.front_finder == "nytpdf":
+        return nyt_pdf(http, day)
     if paper.front_finder == "frontpages":
         html = http.get(f"https://www.frontpages.com/{paper.front_slug}").text
         og = BeautifulSoup(html, "lxml").find("meta", property="og:image")
@@ -42,7 +78,7 @@ def find_image(http: Http, paper: Paper, day: date) -> str | None:
 
 
 def splash(http: Http, paper: Paper, day: date, expected_headline: str = "",
-           expected_standfirst: str = "") -> tuple[Story, int | None] | None:
+           expected_standfirst: str = "") -> tuple[Story, str | None] | None:
     """(story, continued_page) or None. Results — including failures — are cached per paper per day,
     so a bad image is OCR'd once, not on every retry."""
     if not (paper.print_front and config.OCR_ENABLED):
@@ -60,8 +96,7 @@ def splash(http: Http, paper: Paper, day: date, expected_headline: str = "",
     except SourceUnavailable:
         return None                          # transient: no cache entry, retries look again
     try:
-        img = Image.open(io.BytesIO(raw))
-        img.load()                           # decode now, so a truncated/bomb image fails here
+        img = to_image(raw)
         if img.width < MIN_WIDTH:
             store.cache_put("ocr", key, {"story": None, "why": f"image only {img.width}px wide"})
             return None

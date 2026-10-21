@@ -38,7 +38,7 @@ def test_extracts_splash_at_production_thresholds(name):
     recall, leak = score(r, truth)
     assert r.ok, r.reason
     assert recall >= 0.9 and leak == 0
-    assert r.continued_page == truth["page"]
+    assert r.continued_page == str(truth["page"])
     assert words(truth["deck"])[:4] == words(r.deck)[:4]
     assert r.mean_conf >= 85 and r.dict_ratio >= 0.85
 

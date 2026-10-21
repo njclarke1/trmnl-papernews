@@ -10,3 +10,4 @@ numpy==2.5.3
 qrcode==8.2
 pytesseract==0.3.13
 pyspellchecker==0.9.1
+pypdfium2==5.13.0

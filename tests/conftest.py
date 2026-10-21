@@ -35,10 +35,14 @@ def data_dir(tmp_path, monkeypatch):
 
 
 class Resp:
-    def __init__(self, url, text="", content=None, status=200, json_data=None):
+    def __init__(self, url, text="", content=None, status=200, json_data=None, headers=None):
         self.url, self.text, self.status_code = url, text, status
+        self.headers = headers or {}
         self.content = content if content is not None else text.encode()
         self._json = json_data
+
+    def close(self):
+        pass
 
     def json(self):
         import json

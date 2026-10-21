@@ -29,7 +29,7 @@ class Edition:
     kind: str                            # print_front | web_front | latest
     lead: Story
     rail: list[Story] = field(default_factory=list)
-    continued_page: int | None = None    # printed "Continued on page N" (print fronts)
+    continued_page: str | int | None = None   # printed "Continued on page N" ("4", "A8"); int in old files
     note: str = ""                       # attribution line for the footer
     built_at: str = ""                   # ISO time the edition was built
     stale: bool = False                  # carried over from an earlier build (CACHED)

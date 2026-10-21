@@ -61,6 +61,11 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           rss=("https://www.telegraph.co.uk/rss.xml",),
           review_names=("The Daily Telegraph", "The Telegraph", "Telegraph"),
           note_web="telegraph.co.uk · homepage order", note_print="Print splash · telegraph.co.uk"),
+    # The New York Times (added 21 Oct 2026): editors' order from the Top Stories API (free key);
+    # morning body text by OCR of the NYT's own printed front-page PDF (high resolution).
+    Paper("nyt", "The New York Times", "ny", "the NYT", "nyt", "summary",
+          print_front=True, front_finder="nytpdf",
+          note_web="NYT Top Stories API · editors’ order", note_print="Printed front page · text by OCR"),
     # Weeklies (added 21 Oct 2026): shown with their DAILY web stories, styled as their own paper.
     # Not in PA's daily round-up, so never print_front.
     Paper("newworld", "The New World", "nw", "the New World", "web", "summary",
@@ -77,6 +82,7 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           note_web="spectator.co.uk · homepage order"),
 ]}
 
-# Balance (21 Oct 2026): left of centre — Guardian, New World; centre — BBC, FT, i, Economist;
-# right of centre — Times, Telegraph, Spectator. The Independent stays defined but out of the default rotation.
-DEFAULT_ROTATION = "guardian,bbc,ft,times,i,telegraph,newworld,economist,spectator"
+# Balance (21 Oct 2026): left of centre — Guardian, New World, NYT; centre — BBC, FT, i, Economist;
+# right of centre — Times, Telegraph, Spectator. Interleaved so consecutive papers differ in leaning.
+# The Independent stays defined but out of the default rotation.
+DEFAULT_ROTATION = "guardian,bbc,times,nyt,ft,telegraph,newworld,economist,spectator,i"

@@ -33,6 +33,7 @@ PIN = _env("PIN")                        # lock the display to one paper
 
 # Sources
 GUARDIAN_API_KEY = _env("GUARDIAN_API_KEY")
+NYT_API_KEY = _env("NYT_API_KEY")          # free key from developer.nytimes.com (Top Stories API)
 USER_AGENT = _env("USER_AGENT", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36")
 HOST_PACING_S = float(_env("HOST_PACING_S", "2"))
 MIN_BODY_CHARS = int(_env("MIN_BODY_CHARS", "1500"))
