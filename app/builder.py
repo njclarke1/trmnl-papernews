@@ -32,6 +32,9 @@ class Builder:
         self._lock = threading.Lock()
         self._reviews: dict[tuple, dict] = {}       # (slot, source) → entries; successes only
         self._review_failed: dict[tuple, float] = {}  # (slot, source) → when it last failed
+        self._rot_lock = threading.Lock()
+        self._rot_pos: int | None = None            # index into config.ROTATION (poll mode)
+        self._rot_at = 0.0
 
     # ------------------------------------------------------------------ one paper
     REVIEW_SOURCES = {"pa": papers_review.fetch, "bbc": bbc_papers.fetch}
@@ -165,13 +168,34 @@ class Builder:
         st["status"] = "carried"
 
     # ------------------------------------------------------------------ reading
+    def next_paper(self, at: datetime, available: list[str]) -> str | None:
+        """The paper for this fetch. Poll mode advances one place per device fetch (see config)."""
+        if config.ROTATION_MODE == "clock" or (config.PIN and config.PIN in available):
+            return clock.rotation_paper(at, available)[0]
+        rot = config.ROTATION
+        if not any(k in available for k in rot):
+            return None
+        now = at.timestamp()
+        with self._rot_lock:
+            if self._rot_pos is None:               # first fetch after a start: pick up where the clock is
+                first = clock.rotation_paper(at, available)[0]
+                self._rot_pos, self._rot_at = rot.index(first), now
+            elif now - self._rot_at >= config.MIN_ADVANCE_S:
+                self._rot_pos, self._rot_at = self._rot_pos + 1, now
+            for step in range(len(rot)):            # skip papers with nothing to show
+                k = rot[(self._rot_pos + step) % len(rot)]
+                if k in available:
+                    self._rot_pos = (self._rot_pos + step) % len(rot)
+                    return k
+        return None
+
     def current(self, at: datetime | None = None, paper: str | None = None):
         """(slot, edition, preparing) for the paper to show now; falls back to the last good copy."""
         at = at or clock.now()
         slot = clock.edition_for(at)
         state = store.load_state(slot.id)
         available = [k for k in dict.fromkeys(config.ROTATION) if store.load_edition(slot.id, k) or store.last_good(k)]
-        key = paper or clock.rotation_paper(at, available)[0]
+        key = paper or self.next_paper(at, available)
         if key is None:
             return slot, None, True
         ed = store.load_edition(slot.id, key)

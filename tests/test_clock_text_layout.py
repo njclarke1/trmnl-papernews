@@ -117,3 +117,32 @@ def test_weather_codes_and_night_glyph():
     assert weather.describe(0) == ("clear", "Clear") and weather.describe(63)[0] == "rain"
     assert weather.describe(999)[0] == "cloud"
     assert weather.glyph("clear", True) == "moon" and weather.glyph("rain", True) == "rain"
+
+
+# ---------------------------------------------------------------- poll-mode rotation (one paper per device fetch)
+def test_poll_rotation_advances_once_per_fetch_and_ignores_previews(monkeypatch):
+    from app.builder import Builder
+    monkeypatch.setattr(config, "ROTATION_MODE", "poll")
+    monkeypatch.setattr(config, "MIN_ADVANCE_S", 120)
+    b, allp = Builder(), list(config.ROTATION)
+    t0 = at("2026-10-21 10:00").timestamp()
+    from datetime import datetime as dt
+    when = lambda s: dt.fromtimestamp(t0 + s, tz=clock.LONDON)
+    first = b.next_paper(when(0), allp)
+    assert first == clock.rotation_paper(when(0), allp)[0]           # a restart picks up from the clock
+    assert b.next_paper(when(30), allp) == first                      # a preview inside the slot repeats
+    # device fetches every ~183 s (180 s timer + render time): never skips, never repeats
+    seen = [b.next_paper(when(183 * n), allp) for n in range(1, 2 * len(allp) + 1)]
+    i = allp.index(first)
+    assert seen == [allp[(i + n) % len(allp)] for n in range(1, 2 * len(allp) + 1)]
+
+
+def test_poll_rotation_skips_unavailable_papers(monkeypatch):
+    from app.builder import Builder
+    monkeypatch.setattr(config, "ROTATION_MODE", "poll")
+    b = Builder()
+    t0 = at("2026-10-21 10:00").timestamp()
+    from datetime import datetime as dt
+    got = {b.next_paper(dt.fromtimestamp(t0 + 200 * n, tz=clock.LONDON), ["ft", "times"]) for n in range(6)}
+    assert got == {"ft", "times"}
+    assert b.next_paper(dt.fromtimestamp(t0 + 2000, tz=clock.LONDON), []) is None

@@ -47,7 +47,8 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | `NYT_API_KEY` | — | Free key from developer.nytimes.com (enable Top Stories and Article Search); well under 100 calls a day, paced at 12.5 s (the limit is 5 a minute) |
 | `PUBLIC_BASE_URL` | `http://192.168.68.111:3461` | What the template uses to load fonts and images |
 | `ROTATION` | `guardian,bbc,times,nyt,ft,telegraph,newworld,economist,spectator,i` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
-| `SLOT_MINUTES` | `3` | Minutes per paper (2–5 intended); match the Kindle refresh interval |
+| `SLOT_MINUTES` | `3` | Minutes per paper (2–5 intended); set the LaraPaper device/playlist refresh to the same |
+| `ROTATION_MODE` | `poll` | `poll`: each device fetch shows the next paper (fetches less than ⅔ of a slot apart repeat it, so previews don't skip papers). `clock`: derived from the wall clock (stateless, but drifts against the device timer) |
 | `AM_LOCK` / `PM_LOCK` | `06:00` / `16:00` | Europe/London wall-clock time |
 | `PIN` | — | Show one paper only |
 | `WEATHER_LAT/LON/LABEL` | Bristol | One keyless Open-Meteo call an hour |

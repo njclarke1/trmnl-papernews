@@ -29,6 +29,11 @@ ROTATION = [p.strip() for p in _env("ROTATION", DEFAULT_ROTATION).split(",") if 
 # minutes per paper; 2–5 intended. Content only changes at the two edition locks, so a short slot
 # just cycles through papers faster. Match the Kindle's refresh interval.
 SLOT_MINUTES = max(1, int(_env("SLOT_MINUTES", "3")))
+# poll: each device fetch shows the next paper (fetches closer than 2/3 of a slot repeat the current one,
+#       so LaraPaper previews and re-renders don't skip papers). Matches the device refresh exactly.
+# clock: paper derived from the wall clock (stateless; can skip or repeat as fetch timing drifts).
+ROTATION_MODE = _env("ROTATION_MODE", "poll") if _env("ROTATION_MODE", "poll") in ("poll", "clock") else "poll"
+MIN_ADVANCE_S = SLOT_MINUTES * 40
 PIN = _env("PIN")                        # lock the display to one paper
 
 # Sources
