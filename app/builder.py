@@ -13,7 +13,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 
-from . import clock, config, images, layout, store
+from . import clock, config, images, layout, store, weather
 from .model import Edition, Story
 from .papers import PAPERS
 from .sources import bbc_papers, demo, papers_review, printfront
@@ -154,6 +154,11 @@ class Builder:
             self._lock.release()
 
     def _tick(self, at: datetime) -> dict:
+        try:
+            if not config.DEMO_MODE:
+                weather.current()                   # hourly; requests only read the cache
+        except Exception:
+            log.exception("weather refresh failed")
         try:
             self.prefetch_reviews(at.astimezone(clock.LONDON))
         except Exception:

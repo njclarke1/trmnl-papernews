@@ -21,9 +21,10 @@ FIX = pathlib.Path(__file__).parent / "fixtures"
 @pytest.fixture(autouse=True)
 def no_network_weather(monkeypatch):
     from app import weather
-    monkeypatch.setattr(weather, "current", lambda session=None: {
-        "label": "Bristol", "temp": "12°", "hi": "14°", "lo": "6°", "icon": "rain", "night": False,
-        "text": "Rain", "glyph": "rain"})
+    w = {"label": "Bristol", "temp": "12°", "hi": "14°", "lo": "6°", "icon": "rain", "night": False,
+         "text": "Rain", "glyph": "rain"}
+    monkeypatch.setattr(weather, "current", lambda session=None: w)
+    monkeypatch.setattr(weather, "cached", lambda: w)
 
 
 @pytest.fixture(autouse=True)

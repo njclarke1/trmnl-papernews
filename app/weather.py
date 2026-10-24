@@ -31,7 +31,13 @@ def glyph(icon: str, night: bool) -> str:
     return "moon" if night and icon in ("clear", "partly") else icon
 
 
+def cached() -> dict | None:
+    """What a request uses: never touches the network (LaraPaper times out polls at 15 s)."""
+    return _CACHE["data"]
+
+
 def current(session: requests.Session | None = None) -> dict | None:
+    """Refresh at most hourly. Called from the background builder, not from requests."""
     if _CACHE["data"] and time.time() - _CACHE["at"] < 3600:
         return _CACHE["data"]
     try:

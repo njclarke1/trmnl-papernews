@@ -33,7 +33,7 @@ def create_app(builder: Builder | None = None, background: bool = True) -> Flask
     def _payload(paper: str | None):
         at = clock.now()
         slot, ed, preparing = b.current(at, paper)
-        return payload.build(ed, slot, weather=weather.current(), preparing=preparing)
+        return payload.build(ed, slot, weather=weather.cached(), preparing=preparing)
 
     @app.get("/edition")
     def edition():

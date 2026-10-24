@@ -237,3 +237,12 @@ def test_fonts_are_served_with_cors(tmp_path, monkeypatch):
     c = create_app(background=False).test_client()
     r = c.get("/static/fonts/PlayfairDisplay-Variable.ttf")
     assert r.status_code == 200 and r.headers["Access-Control-Allow-Origin"] == "*"
+
+
+def test_edition_requests_never_wait_on_the_network(monkeypatch):
+    """LaraPaper times out a poll at 15 s and then renders an empty page: requests read caches only."""
+    from app import weather
+    from app.main import create_app
+    monkeypatch.setattr(weather, "current", lambda session=None: pytest.fail("network call in a request"))
+    c = create_app(background=False).test_client()
+    assert c.get("/edition").status_code == 200
