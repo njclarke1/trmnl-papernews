@@ -34,6 +34,7 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
     if lay == "full" and not lead.paragraphs:    # never an empty body zone
         lay = "summary" if ed.image else "briefing"
     rail = [s for s in ed.rail if s.headline][: RAIL_COUNT.get(lay, 3)]
+    flag, lead_headline = text.split_flag(lead.headline)
     # "Also on the front" only when every rail story really is from that front (the Guardian's and the
     # NYT's printed fronts are topped up from the website when page 1 has few stories)
     front = ed.kind == "web_front" or (ed.kind == "print_front" and (ed.rail_front < 0 or ed.rail_front >= len(rail)))
@@ -55,14 +56,14 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
         "paper": {"key": p.key, "name": p.name, "np": p.np, "sub": "THE i PAPER" if p.key == "i" else ""},
         "qr": images.qr_url(lead.url),
         "lead": {
-            "kicker": html.escape(lead.section or "News"),
+            "kicker": html.escape(flag or lead.section or "News"),
             "kind": kicker_kind(ed.kind),
-            "headline": text.display(lead.headline),
-            "lines": text.headline_lines(lead.headline),
+            "headline": text.display(lead_headline),
+            "lines": text.headline_lines(lead_headline),
             "deck": "" if para_from_deck else text.display(lead.standfirst),
             # a deck printed in capitals (NYT banks: "CITING SIMILAR NAMES") is set roman and spaced, not italic
             "deck_caps": sum(c.isupper() for c in lead.standfirst) > 0.8 * max(1, sum(c.isalpha() for c in lead.standfirst)),
-            "byline": html.escape(text.clean(lead.byline) or p.short.title()),
+            "byline": html.escape(text.clean(lead.byline)),
             "image": ed.image or None,
             "caption": html.escape(text.clean(" ".join(x for x in (lead.caption, lead.credit) if x))),
             "flow_json": html.escape(json.dumps(flow, ensure_ascii=False), quote=True),
@@ -72,7 +73,7 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
         "rail_head": "Also<br>on the<br>front" if front else "More<br>stories",
         "list_head": "Top stories" if front else "The briefing",
         "rail_grid": lay == "summary" and len(rail) == 4,
-        "rail": [{"n": i + 1, "section": html.escape(s.section or ""), "headline": text.display(s.headline),
+        "rail": [{"n": i + 1, "section": html.escape(s.section or ""), "headline": text.display(text.split_flag(s.headline)[1]),
                   "summary": text.display(s.standfirst) if lay == "bulletin" else ""} for i, s in enumerate(rail)],
         "foot": {"note": html.escape(ed.note), "tag": tag, "built": ed.built_at[:16].replace("T", " ")},
     }

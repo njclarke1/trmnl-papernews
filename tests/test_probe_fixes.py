@@ -247,3 +247,16 @@ def test_edition_requests_never_wait_on_the_network(monkeypatch):
     monkeypatch.setattr(weather, "current", lambda session=None: pytest.fail("network call in a request"))
     c = create_app(background=False).test_client()
     assert c.get("/edition").status_code == 200
+
+
+def test_headline_flags_become_the_kicker():
+    assert text.split_flag("EXCLUSIVE: The power of talking to dead people") == ("Exclusive", "The power of talking to dead people")
+    assert text.split_flag("Live – Budget latest") == ("Live", "Budget latest")
+    assert text.split_flag("Exclusive deal for teachers") == ("", "Exclusive deal for teachers")
+
+
+def test_byline_from_meta_author_when_jsonld_has_none():
+    from app.sources.base import read_article
+    page = ('<html><head><meta name="author" content="Alastair Campbell"><script type="application/ld+json">'
+            '{"@type":"Article","headline":"H"}</script></head><body><p>x</p></body></html>')
+    assert read_article(FakeHttp({"https://x/": page}), "https://x/a").byline == "Alastair Campbell"

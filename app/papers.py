@@ -29,17 +29,17 @@ class Paper:
 PAPERS: dict[str, Paper] = {p.key: p for p in [
     Paper("guardian", "The Guardian", "gu", "the Guardian", "guardian", "summary",
           review_names=("The Guardian", "Guardian"),
-          note_web="Guardian Content API · editors’ picks", note_print="Printed page 1 · Guardian Content API"),
+          note_web="Editors’ picks", note_print="Printed page 1"),
     Paper("bbc", "BBC NEWS", "bbc", "the BBC", "web", "bulletin",
           home="https://www.bbc.co.uk/news", article_re=r"^/news/(articles/[a-z0-9]{10,}|[a-z0-9_-]+-\d{7,})$",
           rss=("https://feeds.bbci.co.uk/news/rss.xml",),
-          note_web="bbc.co.uk/news · homepage order"),
+          note_web="Homepage order"),
     Paper("ft", "FINANCIAL TIMES", "ft", "the FT", "web", "summary",
           home="https://www.ft.com", article_re=r"^/content/[0-9a-f-]{36}$",
           rss=("https://www.ft.com/rss/home/uk", "https://www.ft.com/rss/home"),
           print_front=True, front_slug="financial-times",
           review_names=("Financial Times", "The FT", "FT"),
-          note_web="ft.com · headlines (articles paywalled)", note_print="Printed front page · text by OCR"),
+          note_web="Headlines · articles paywalled", note_print="Printed front page · text by OCR"),
     # The Times and The Telegraph block automated visitors (24 Oct probe: "Verifying device", and a
     # security page with HTTP 402), so they are print-only: the morning printed front, read by OCR,
     # held all day. Not published on Sundays (the Sunday titles are different papers).
@@ -53,12 +53,12 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           article_re=r"^/(news|politics|world|business|climate-change|tech|life-style|voices|sport)/.+-[ab]?\d{6,}\.html$",
           rss=("https://www.independent.co.uk/news/uk/rss", "https://www.independent.co.uk/rss"),
           review_names=("The Independent", "Independent"),
-          note_web="independent.co.uk · homepage order"),
+          note_web="Homepage order"),
     Paper("i", "i", "i", "the i", "web", "briefing",
           home="https://inews.co.uk", article_re=r"^/(news|opinion|money|sport|culture|inews-lifestyle)/.+-\d{6,}/?$",
           rss=("https://inews.co.uk/feed",),
           review_names=("The i", "i paper", "i"),
-          note_web="inews.co.uk · homepage order", note_print="Print splash · inews.co.uk"),
+          note_web="Homepage order"),
     Paper("telegraph", "The Daily Telegraph", "tg", "the Telegraph", "print", "briefing",
           home="https://www.telegraph.co.uk",
           print_front=True, front_finder="tomorrowspapers", print_days="012345",
@@ -68,21 +68,21 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
     # morning body text by OCR of the NYT's own printed front-page PDF (high resolution).
     Paper("nyt", "The New York Times", "ny", "the NYT", "nyt", "summary",
           print_front=True, front_finder="nytpdf",
-          note_web="NYT Top Stories API · editors’ order", note_print="Printed front page · text by OCR"),
+          note_web="Editors’ order", note_print="Printed front page · text by OCR"),
     # Weeklies (added 21 Oct 2026): shown with their DAILY web stories, styled as their own paper.
     # Not in PA's daily round-up, so never print_front.
     Paper("newworld", "The New World", "nw", "the New World", "web", "summary",
           home="https://www.thenewworld.co.uk", article_re=r"^/(?:[a-z0-9-]+/)?[a-z0-9]+(?:-[a-z0-9]+){3,}/?$",
           rss=("https://www.thenewworld.co.uk/feed/", "https://www.thenewworld.co.uk/rss"),
-          note_web="thenewworld.co.uk · homepage order"),
+          note_web="Homepage order"),
     Paper("economist", "The Economist", "ec", "the Economist", "web", "summary",
           home="https://www.economist.com", article_re=r"^/[a-z-]+/\d{4}/\d{2}/\d{2}/[a-z0-9-]+$",
           rss=("https://www.economist.com/latest/rss.xml", "https://www.economist.com/the-world-this-week/rss.xml"),
-          note_web="economist.com · headlines (articles paywalled)"),
+          note_web="Headlines · articles paywalled"),
     Paper("spectator", "THE SPECTATOR", "sp", "the Spectator", "web", "summary",
           home="https://spectator.com", article_re=r"^/article/[a-z0-9-]+/?$",
           rss=("https://spectator.com/feed/", "https://www.spectator.co.uk/feed/"),
-          note_web="spectator.com · homepage order"),
+          note_web="Homepage order"),
 ]}
 
 # Balance (24 Oct 2026, after the first probe): three each — left of centre Guardian, New World, NYT;

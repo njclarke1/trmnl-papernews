@@ -59,6 +59,18 @@ BOILERPLATE = re.compile(
     r"follow us|share this|listen to this article)\b|^\s*(read more|related|see also)\s*:", re.I)
 
 
+FLAG = re.compile(r"^\s*(exclusive|live|watch|analysis|breaking|revealed|interview|comment|opinion|explainer)\s*[:|–—-]\s+", re.I)
+
+
+def split_flag(headline: str) -> tuple[str, str]:
+    """'EXCLUSIVE: The power of…' → ('Exclusive', 'The power of…'); ('', headline) otherwise."""
+    m = FLAG.match(headline or "")
+    if not m:
+        return "", headline
+    rest = headline[m.end():]
+    return m.group(1).capitalize(), rest[:1].upper() + rest[1:]
+
+
 def paragraphs_from_blob(text: str) -> list[str]:
     """Split extracted article text into paragraphs (newline-separated or one blob), dropping
     page furniture the extractor lets through (BBC "Published", Independent membership prompts)."""

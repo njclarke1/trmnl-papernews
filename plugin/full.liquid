@@ -167,7 +167,7 @@ html,body{margin:0!important;padding:0!important;background:#fff}
     <div class="kicker lbl"><span class="chip">{{ lead.kicker }}</span><span class="kind">{{ lead.kind }}</span></div>
     <h1 class="hed" data-lines="{{ lead.lines }}">{{ lead.headline }}</h1>
     {% if lead.deck != "" %}<div class="deck-rule"></div><p class="deck{% if lead.deck_caps %} caps{% endif %}">{{ lead.deck }}</p>{% endif %}
-    <div class="byline lbl"><i></i>{{ lead.byline }}<i></i></div>
+    {% if lead.byline != "" %}<div class="byline lbl"><i></i>{{ lead.byline }}<i></i></div>{% endif %}
   </div>
   {% endcapture %}
 

@@ -40,7 +40,7 @@ EDITIONS: dict[str, Edition] = {
         [S("US resumes sharing intelligence on Russian strikes with Ukraine, Zelenskyy says", "World"),
          S("France imposes overnight curfews in Paris, Lille and Nice after weekend of rioting", "Europe"),
          S("Guinea-Bissau police seize vaccines at centre of newborn research row", "Global health")],
-        note="Guardian Content API · editors’ picks"),
+        note="Editors’ picks"),
     "bbc": Edition("bbc", "web_front", Story(
         "France imposes curfews after weekend of riots and looting",
         "About 2,400 people were arrested as cost-of-living protests turned violent, and the interior minister admits police lost control in some cities",
@@ -49,7 +49,7 @@ EDITIONS: dict[str, Edition] = {
          S("NHS ‘not ready’ for another winter crisis, leaders warn", "Health", "Hospitals say they are already struggling to keep up with demand."),
          S("Childcare cap for larger families set to be lifted", "Family", "The change would follow the end of the two-child limit on universal credit."),
          S("US resumes sharing intelligence with Kyiv", "Ukraine", "Zelenskyy says warnings about incoming Russian strikes have restarted.")],
-        note="bbc.co.uk/news · homepage order"),
+        note="Homepage order"),
     "ft": Edition("ft", "web_front", Story(
         "Challenges facing Macron deepen after street clashes reignite French debt rout",
         "Gap between French and German borrowing costs widens to about 150 basis points as curfews are imposed and the military is readied for further unrest",
@@ -58,7 +58,7 @@ EDITIONS: dict[str, Edition] = {
          S("Burnham asks officials for radical options on Thames Water", "Utilities"),
          S("French yields near 24-year high as new protests loom", "Bonds"),
          S("Army front-line vehicle programme faces £2bn cut", "Defence")],
-        note="ft.com · headlines (articles paywalled)"),
+        note="Headlines · articles paywalled"),
     "times": Edition("times", "print_front", Story(
         "Curfews for riot-torn French cities",
         "Paris, Lille and Nice impose overnight restrictions after a weekend of looting and clashes with police",
@@ -80,7 +80,7 @@ EDITIONS: dict[str, Edition] = {
         [S("Rioters face €20,000 fines under new laws as 500 troops patrol Milan", "Italy"),
          S("The 74-year-old US teacher still held in Russian detention", "Russia"),
          S("Ohio Democrat hits back at attack ad featuring her estranged mother", "US politics")],
-        note="independent.co.uk · homepage order"),
+        note="Homepage order"),
     "i": Edition("i", "print_front", Story(
         "Two-child cap on childcare benefits will be lifted by April",
         "Parents on benefits with three or more children set to get help with nursery costs for every child",
@@ -90,7 +90,7 @@ EDITIONS: dict[str, Edition] = {
          S("Chancellor rules out raising capital gains tax", "Budget"),
          S("Health leaders warn hospitals are not ready for another winter crisis", "NHS"),
          S("Doncaster Sheffield Airport set for public ownership", "Transport")],
-        note="Print splash · inews.co.uk"),
+        note="Splash named by the paper reviews"),
     "telegraph": Edition("telegraph", "print_front", Story(
         "Labour cuts £2bn from Army front line",
         "Mortar, repair and overwatch versions of the Boxer armoured vehicle are dropped",
@@ -114,7 +114,7 @@ EDITIONS: dict[str, Edition] = {
          S("Fed Signals It Will Hold Rates Steady Through Winter", "Economy"),
          S("Britain Weighs Nationalizing Its Biggest Water Company", "Europe"),
          S("A Drought Is Emptying the Reservoirs That Supply Mexico City", "Americas")],
-        note="NYT Top Stories API · editors’ order"),
+        note="Editors’ order"),
     "newworld": Edition("newworld", "web_front", Story(
         "Europe’s streets erupt as cost-of-living anger spreads from Paris to Milan",
         "Curfews in France and troops in Italy: why the protests matter for Britain’s relationship with its neighbours",
@@ -122,7 +122,7 @@ EDITIONS: dict[str, Edition] = {
         [S("The Thames Water saga shows the limits of privatisation", "Britain"),
          S("Inside the race to rebuild Ukraine’s power grid before winter", "Ukraine"),
          S("What a Budget without a tax rise on capital gains really means", "Economy")],
-        note="thenewworld.co.uk · homepage order"),
+        note="Homepage order"),
     "economist": Edition("economist", "web_front", Story(
         "France’s debt troubles are back, and this time the streets are angry",
         "Curfews, riots and a widening bond spread put Emmanuel Macron’s government under fresh strain",
@@ -131,7 +131,7 @@ EDITIONS: dict[str, Edition] = {
          S("America resumes intelligence-sharing with Ukraine", "United States"),
          S("Why central banks are pausing rate cuts", "Finance & economics"),
          S("The quiet return of industrial policy in Europe", "Business")],
-        note="economist.com · headlines (articles paywalled)"),
+        note="Headlines · articles paywalled"),
     "spectator": Edition("spectator", "web_front", Story(
         "Labour’s defence cuts expose the gap between rhetoric and reality",
         "Ministers promised more for the armed forces. The Boxer decision tells a different story",
@@ -139,7 +139,7 @@ EDITIONS: dict[str, Edition] = {
         [S("Kemi Badenoch’s warning on the Budget", "Politics"),
          S("France is learning what happens when the money runs out", "Europe"),
          S("Is the NHS ready for winter? Nobody believes it", "Health")],
-        note="spectator.co.uk · homepage order"),
+        note="Homepage order"),
 }
 
 

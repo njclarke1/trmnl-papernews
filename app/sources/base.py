@@ -166,14 +166,18 @@ def read_article(http: Http, url: str, max_age_h: float = 6) -> Story:
         paras = text.paragraphs_from_blob(o.get("articleBody", "")) or [body_ld]
     if free is False:
         paras = []                         # never show what the publisher marks as paid
-    author = _first(o.get("author"))
+    authors = o.get("author") if isinstance(o.get("author"), list) else [o.get("author")]
+    names = [text.clean(a.get("name") if isinstance(a, dict) else a or "") for a in authors]
+    names = [n for n in names if n and not n.lower().startswith(("http", "the "))]
+    meta_author = soup.find("meta", attrs={"name": "author"})
+    author = " and ".join(names) or text.clean(meta_author.get("content") if meta_author else "")
     og_title = soup.find("meta", property="og:title")
     og_desc = soup.find("meta", property="og:description")
     st = Story(
         headline=text.clean(o.get("headline") or (og_title.get("content") if og_title else "")),
         standfirst=text.clean(o.get("description") or (og_desc.get("content") if og_desc else "")),
         paragraphs=paras,
-        byline=text.clean(author.get("name") if isinstance(author, dict) else author or ""),
+        byline=author,
         section=text.clean(_first(o.get("articleSection")) or ""),
         url=url, image_url=_image(o, soup), is_free=free,
         live="LiveBlogPosting" in (o.get("@type") if isinstance(o.get("@type"), list) else [o.get("@type")]))

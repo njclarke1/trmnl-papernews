@@ -82,7 +82,9 @@ def _frontpages(http: Http, paper: Paper, day: date) -> str | None:
 
 def identify(img: Image.Image) -> str | None:
     """Which paper is this front? OCR of the masthead band (top 16%)."""
+    import os
     import pytesseract
+    pytesseract.pytesseract.tesseract_cmd = os.environ.get("TESSERACT_CMD", "tesseract")
     band = img.convert("L").crop((0, 0, img.width, int(img.height * 0.16)))
     if band.width < 2000:
         band = band.resize((band.width * 2, band.height * 2), Image.LANCZOS)

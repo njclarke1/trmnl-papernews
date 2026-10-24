@@ -2,7 +2,9 @@ FROM python:3.12-slim
 
 # Tesseract for the printed-front OCR (FT, The Times; morning edition only)
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update -qq && apt-get install -y -qq --no-install-recommends tesseract-ocr \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && printf '#!/bin/sh\nexec nice -n 15 tesseract "$@"\n' > /usr/local/bin/tesseract-nice \
+    && chmod +x /usr/local/bin/tesseract-nice
 
 WORKDIR /app
 COPY requirements.txt .
@@ -10,7 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY plugin ./plugin
 
-ENV DATA_DIR=/data PYTHONUNBUFFERED=1
+# OCR runs at low priority on one core, so LaraPaper's renders (and the Kindle's fetches) stay fast
+ENV DATA_DIR=/data PYTHONUNBUFFERED=1 OMP_THREAD_LIMIT=1 TESSERACT_CMD=/usr/local/bin/tesseract-nice
 VOLUME /data
 EXPOSE 8000
 

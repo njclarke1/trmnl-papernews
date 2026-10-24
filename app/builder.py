@@ -110,9 +110,11 @@ class Builder:
                 ed = adapter.build(slot.kind, slot.day.isoformat(), entry, print_lead)
                 ed.continued_page = cont if ed.kind == "print_front" else None
                 if ed.kind == "print_front" and print_lead is None:      # splash named by the round-ups only
-                    ed.note = f"{paper.note_web.split(' · ')[0]} · splash named by the paper reviews"
+                    ed.note = "Splash named by the paper reviews"
         ed.built_at = ed.built_at or clock.now().isoformat(timespec="seconds")
-        ed.note = ed.note or (paper.note_print if ed.kind == "print_front" and paper.note_print else paper.note_web)
+        if not ed.note:
+            ed.note = (paper.note_print if ed.kind == "print_front" and paper.note_print
+                       else "Latest stories · from the feed" if ed.kind == "latest" else paper.note_web)
         ed.layout = layout.choose(ed, paper)
         ed.image = self.build_image(ed)
         if not ed.image and ed.layout in layout.NEEDS_IMAGE:

@@ -10,6 +10,7 @@ so garbled text never appears under a masthead.
 """
 from __future__ import annotations
 
+import os
 import re
 import statistics
 from dataclasses import dataclass, field
@@ -79,6 +80,7 @@ class SplashResult:
 def ocr_lines(img: Image.Image, upscale_below: int = 2000) -> tuple[list[Line], float]:
     """Run Tesseract and return lines in image coordinates of the *upscaled* image, plus the scale."""
     import pytesseract
+    pytesseract.pytesseract.tesseract_cmd = os.environ.get("TESSERACT_CMD", "tesseract")
 
     im = ImageOps.grayscale(img)
     scale = 2.0 if im.width < upscale_below else 1.0

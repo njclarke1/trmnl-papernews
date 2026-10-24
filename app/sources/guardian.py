@@ -126,7 +126,7 @@ class GuardianAdapter:
         if not leads:
             raise ShapeError("Guardian: no news article among editors' picks")
         stories = [to_story(i) for i in leads]
-        kind, printed = "web_front", ""
+        kind = "web_front"
         if slot_kind == "am" and review is not None:
             idx = best_match(review.query, stories)
             if idx is None:
@@ -136,10 +136,8 @@ class GuardianAdapter:
                     stories.insert(0, found[j]); idx = 0
             if idx is not None:
                 stories.insert(0, stories.pop(idx))
-                kind, printed = "print_front", papers_review.as_headline(review.quoted)
+                kind = "print_front"          # the round-up identifies the splash; the paper's own headline is shown
         lead = stories[0]
-        if printed:
-            lead.headline = printed
         return Edition("guardian", kind, lead, stories[1:6], note="", built_at=utc_now_iso())
 
     def _from_front(self, front: list[dict], review) -> Edition:
@@ -153,8 +151,6 @@ class GuardianAdapter:
         idx = best_match(review.query, stories) if review is not None else None
         if idx is not None:
             stories.insert(0, stories.pop(idx))
-            if papers_review.as_headline(review.quoted):
-                stories[0].headline = papers_review.as_headline(review.quoted)
         rail = stories[1:]
         on_front = len(rail)
         try:                                    # fill the rail from the website front, news before features

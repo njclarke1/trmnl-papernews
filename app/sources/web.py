@@ -91,12 +91,11 @@ class WebAdapter:
     def build(self, slot_kind: str, day_iso: str, review=None, print_lead: Story | None = None) -> Edition:
         kind, cands = self.candidates()
         from_feed = kind == "latest"          # RSS order is not a front: the rail is then just 'more stories'
-        printed = ""
         if slot_kind == "am" and review is not None:
             idx = best_match(review.query, cands)
             if idx is not None:
                 cands.insert(0, cands.pop(idx))
-                kind, printed = "print_front", papers_review.as_headline(review.quoted)
+                kind = "print_front"          # the round-up identifies the splash; the paper's own headline is shown
         if print_lead is not None:                       # OCR'd printed splash (FT, Times)
             idx = best_match(print_lead.headline, cands, threshold=0.5)
             hint = cands.pop(idx) if idx is not None else Story(headline=print_lead.headline)
@@ -111,8 +110,6 @@ class WebAdapter:
             cands = cands[1:]
         if lead.live and lead.body_chars < 1500:
             lead.paragraphs = []                          # live blogs: summary layout, not a wall of updates
-        if printed:
-            lead.headline = printed
         rail = []
         for c in cands[:RAIL_FETCH]:
             try:
