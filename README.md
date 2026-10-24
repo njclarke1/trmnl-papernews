@@ -49,8 +49,8 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | `PUBLIC_BASE_URL` | `http://192.168.68.111:3461` | What the template uses to load fonts and images |
 | `ROTATION` | `guardian,bbc,times,nyt,ft,telegraph,newworld,i,spectator` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
 | `SLOT_MINUTES` | `3` | Minutes per paper (2–5 intended); set the LaraPaper device/playlist refresh to the same |
-| `ROTATION_MODE` | `poll` | `poll`: each device fetch shows the next paper, so **tapping the Kindle advances it** (polls under `MIN_ADVANCE_S` apart repeat the paper). `clock`: derived from the wall clock (stateless, but drifts against the device timer) |
-| `MIN_ADVANCE_S` | `45` | Polls closer together than this show the same paper (LaraPaper can fetch twice in one second) |
+| `ROTATION_MODE` | `poll` | `poll`: each Kindle fetch shows the next paper (see `MIN_ADVANCE_S`). `clock`: derived from the wall clock (stateless, but drifts against the device timer) |
+| `MIN_ADVANCE_S` | slot − 30 s (150) | The paper advances only on a poll at least this long after the last advance: one new paper per Kindle fetch, however many previews or extra polls arrive. Lower it (e.g. 45) to let a tap advance sooner, at the risk of skipped papers |
 | `AM_LOCK` / `PM_LOCK` | `06:00` / `16:00` | Europe/London wall-clock time |
 | `PIN` | — | Show one paper only |
 | `WEATHER_LAT/LON/LABEL` | Bristol | One keyless Open-Meteo call an hour |

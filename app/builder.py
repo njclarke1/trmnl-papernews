@@ -35,6 +35,7 @@ class Builder:
         self._rot_lock = threading.Lock()
         self._rot_pos: int | None = None            # index into config.ROTATION (poll mode)
         self._rot_at = 0.0
+        self.served: list[tuple[str, str]] = []      # (time, paper) of recent /edition polls, for /healthz
 
     # ------------------------------------------------------------------ one paper
     REVIEW_SOURCES = {"pa": papers_review.fetch, "bbc": bbc_papers.fetch}
@@ -211,7 +212,7 @@ class Builder:
     def status(self, at: datetime | None = None) -> dict:
         """Read-only view of the current edition's build state (for /healthz)."""
         slot = clock.edition_for(at or clock.now())
-        return {"slot": slot.id, "papers": store.load_state(slot.id)}
+        return {"slot": slot.id, "papers": store.load_state(slot.id), "recent_polls": self.served}
 
     def _carry(self, slot: clock.Slot, key: str, st: dict) -> None:
         prev = store.last_good(key)
@@ -242,6 +243,7 @@ class Builder:
                 k = rot[(self._rot_pos + step) % len(rot)]
                 if k in available:
                     self._rot_pos = (self._rot_pos + step) % len(rot)
+                    self.served = (self.served + [(at.strftime("%H:%M:%S"), k)])[-15:]
                     return k
         return None
 

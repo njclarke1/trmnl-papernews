@@ -146,3 +146,25 @@ def test_poll_rotation_skips_unavailable_papers(monkeypatch):
     got = {b.next_paper(dt.fromtimestamp(t0 + 200 * n, tz=clock.LONDON), ["ft", "times"]) for n in range(6)}
     assert got == {"ft", "times"}
     assert b.next_paper(dt.fromtimestamp(t0 + 2000, tz=clock.LONDON), []) is None
+
+
+def test_stray_polls_never_make_the_kindle_skip_a_paper(monkeypatch):
+    """24 Oct: LaraPaper previews and extra polls advanced the rotation between Kindle fetches, so the
+    Kindle only ever showed some papers. With the guard just under the fetch interval it sees every one."""
+    from datetime import datetime as dt
+    from app.builder import Builder
+    monkeypatch.setattr(config, "ROTATION_MODE", "poll")
+    monkeypatch.setattr(config, "MIN_ADVANCE_S", 150)
+    b, allp = Builder(), list(config.ROTATION)
+    t0 = at("2026-10-24 10:00").timestamp()
+    when = lambda s: dt.fromtimestamp(t0 + s, tz=clock.LONDON)
+    seen = []
+    for n in range(2 * len(allp)):
+        base = 183 * n
+        seen.append(b.next_paper(when(base), allp))          # the Kindle's fetch
+        b.next_paper(when(base + 1), allp)                   # a double fetch
+        b.next_paper(when(base + 70), allp)                  # a preview in LaraPaper
+        b.next_paper(when(base + 160), allp)                 # "Fetch data now"
+    idx = [allp.index(k) for k in seen]
+    steps = {(j - i) % len(allp) for i, j in zip(idx, idx[1:])}
+    assert steps <= {0, 1} and set(seen) == set(allp)        # never skips; every paper appears
