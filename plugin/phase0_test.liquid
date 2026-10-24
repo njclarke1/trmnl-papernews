@@ -4,6 +4,9 @@
      3. the circle is round (not an ellipse)  ⇒  no rescaling anywhere in the chain -->
 <style>
 html,body{margin:0!important;padding:0!important;background:#fff}
+/* LaraPaper wraps recipes in the TRMNL framework's .screen, which for Kindle presets lays out an 800x600
+   screen and scales it (PW11: transform scale 2.06). papernews is drawn at native 1236x1648, so undo it. */
+.screen{transform:none!important;zoom:1!important;width:1236px!important;height:1648px!important;margin:0!important;padding:0!important;overflow:visible!important}
 .t{position:fixed;top:0;left:0;width:1236px;height:1648px;box-sizing:border-box;border:2px solid #000;
    font:700 40px/1.2 sans-serif;color:#000}
 .t .c{position:absolute;font-size:28px}

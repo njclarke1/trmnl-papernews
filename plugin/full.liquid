@@ -11,6 +11,9 @@
 
 /* page-offset fix (rugby lesson): LaraPaper wraps markup in its own page */
 html,body{margin:0!important;padding:0!important;background:#fff}
+/* LaraPaper wraps recipes in the TRMNL framework's .screen, which for Kindle presets lays out an 800x600
+   screen and scales it (PW11: transform scale 2.06). papernews is drawn at native 1236x1648, so undo it. */
+.screen{transform:none!important;zoom:1!important;width:1236px!important;height:1648px!important;margin:0!important;padding:0!important;overflow:visible!important}
 :root{--ink:#000;--paper:#fff;--hair:1.5px;--rule:2px;--bar:6px}
 .fp *{box-sizing:border-box;margin:0;padding:0}
 .fp{box-sizing:border-box;position:fixed;top:0;left:0;width:1236px;height:1648px;background:var(--paper);color:var(--ink);padding:32px 40px 24px;

@@ -43,7 +43,11 @@ def main(states):
         page = b.new_page(viewport={"width": 1236, "height": 1648})
         for st in states:
             data = client.get(f"/demo/{st}.json").get_json()
-            html = f"<!doctype html><html><head><meta charset='utf-8'></head><body>{tpl.render(**data)}</body></html>"
+            # wrapped exactly as LaraPaper serves it to the PW11 preset (measured on the device, 24 Oct 2026)
+            html = ("<!doctype html><html><head><meta charset='utf-8'><style>.screen{width:800px;height:600px;"
+                    "transform:matrix(2.06,0,0,2.06,0,0);transform-origin:0 0}</style></head>"
+                    "<body class='environment trmnl'><div class='screen screen--amazon_kindle_paperwhite_signature_11th_gen "
+                    f"screen--4bit screen--scale-xlarge'>{tpl.render(**data)}</div></body></html>")
             (OUT / f"{st}.html").write_text(html)
             page.goto(f"http://127.0.0.1:{PORT}/healthz")          # same origin for fonts/images
             page.set_content(html, wait_until="networkidle")
@@ -55,10 +59,11 @@ def main(states):
             raw.unlink()
             report[st] = page.evaluate("""() => {
               const fp=document.querySelector('.fp'), r=fp.getBoundingClientRect();
+              const box=[r.left,r.top,r.width,r.height].map(Math.round).join(',');
               const spill=[...fp.querySelectorAll('*')].filter(e=>e.offsetParent&&e.getBoundingClientRect().bottom>r.bottom-24+1&&!e.closest('.foot')).length;
               const cut=[...fp.querySelectorAll('.flow,.list,.col')].some(x=>x.scrollHeight>x.clientHeight+1);
               const hed=fp.querySelector('.hed'); const fonts=[...document.fonts].filter(f=>f.status==='loaded').length;
-              return {layout:%s, spill, cut, hed: hed?getComputedStyle(hed).fontSize:null, fonts_loaded:fonts,
+              return {layout:%s, box, spill, cut, hed: hed?getComputedStyle(hed).fontSize:null, fonts_loaded:fonts,
                       jump: !!fp.querySelector('.jump') && getComputedStyle(fp.querySelector('.jump')).visibility};
             }""" % json.dumps(data["layout"]))
             print(st, report[st], flush=True)

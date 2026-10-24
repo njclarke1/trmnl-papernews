@@ -4,6 +4,9 @@
      560×560 CSS px, so it stays readable even if the page is magnified and cropped. -->
 <style>
 html,body{margin:0!important;padding:0!important;background:#fff}
+/* LaraPaper wraps recipes in the TRMNL framework's .screen, which for Kindle presets lays out an 800x600
+   screen and scales it (PW11: transform scale 2.06). papernews is drawn at native 1236x1648, so undo it. */
+.screen{transform:none!important;zoom:1!important;width:1236px!important;height:1648px!important;margin:0!important;padding:0!important;overflow:visible!important}
 #dg{position:absolute;top:40px;left:40px;width:500px;font:600 15px/1.35 monospace;color:#000;border:2px solid #000;padding:8px;background:#fff;z-index:9}
 #dg b{font-size:18px}
 .rx{position:absolute;top:0;height:10px;border-left:2px solid #000}
