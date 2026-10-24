@@ -21,21 +21,13 @@ The resolution is not the problem: the preset's 1648 × 1236 is correct. The pro
 
 So the framework lays recipes out on an 800 × 600 CSS screen and scales it 2.06× to fill the panel. That suits TRMNL's 800-px layouts. papernews is a native 1236 × 1648 portrait page (1 CSS px = 1 panel pixel), so only its top-left 800 × 600 shows, magnified.
 
-**Fix: a portrait model with no TRMNL CSS class and no scaling variables.**
-1. Go to Device Models (`/device-models`) and duplicate "Amazon Kindle PW Signature 11th Gen". Duplicate rather than edit: model syncs overwrite `source: api` presets, and the copy is `manual`.
-2. Edit the copy. **Duplicate copies the CSS class and variables, so they must be cleared, not left as they are:**
+**Diagnostic result (24 Oct, `plugin/diag.liquid`):** once device 3 was on a duplicated model set to 1236 × 1648 with rotation 0:
+- the browser window was exactly right: 1236 × 1648 at devicePixelRatio 1;
+- the TRMNL framework's wrapper still had class `screen--amazon_kindle_paperwhite_signature_11th_gen` with `--screen-w: 800px`, `--screen-h: 600px`, `--pixel-ratio: 2.06`, and `transform: matrix(2.06, 0, 0, 2.06, 0, 0)` on an 800 × 600 `.screen`.
 
-| Field | Value |
-|---|---|
-| name | `kindle_pw11_portrait` (anything with no TRMNL CSS class of the same name) |
-| width × height | 1236 × 1648 |
-| scale factor | 1 |
-| rotation | 0 |
-| **CSS name** | **empty** |
-| **CSS variables** | **delete all** (LaraPaper then fills `--screen-w: 1236px`, `--screen-h: 1648px` itself) |
-| colours / bit depth / type | 16 / 4 / PNG (unchanged) |
-
-Then assign device 3 to the new model and regenerate (`php artisan trmnl:screen:generate 3`). Check that the frame touches all four edges, the circle is round, the line boxes are crisp and all 16 greys are distinct. Mount the Kindle upright, with USB-C at the bottom.
+**Settled fix (two parts):**
+1. **Device model:** a manual copy of the PW11 preset at 1236 × 1648, rotation 0 (scale factor 1). This sets the window size and stops the 90° rotation. *Done.*
+2. **Templates:** `full.liquid`, the test pattern and the diagnostic reset `.screen` (`transform: none`, 1236 × 1648) themselves (commit 493c33c). This works whatever the framework's CSS class or variables say, so clearing the CSS name and variables on the model is now optional tidying. The render harness renders inside the same wrapper and checks the page box is 0, 0, 1236, 1648.
 
 Device refresh, or the playlist's refresh time: 180 s, the same as `SLOT_MINUTES=3`.
 
