@@ -207,3 +207,26 @@ def test_round_ups_are_prefetched_overnight_and_kept(monkeypatch):
 
 def test_headline_from_round_up_sentence():
     assert papers_review.headline_from("The Times leads with curfews for riot-torn cities. Also...") == "Curfews for riot-torn cities"
+
+
+# ----------------------------------------------------------------------------- first live edition (24 Oct, 08:14)
+def test_round_up_fragments_never_replace_the_papers_headline():
+    assert papers_review.as_headline("online safety laws have failed to protect children") == ""
+    assert papers_review.as_headline("Curfews for riot-torn French cities") == "Curfews for riot-torn French cities"
+    assert papers_review.as_headline("No") == ""
+
+
+def test_related_lines_are_dropped():
+    assert text.paragraphs_from_blob("Related: UK watchdogs urged to act\nReal paragraph here.") == ["Real paragraph here."]
+
+
+def test_rail_is_only_called_the_front_when_it_is():
+    from app import payload
+    from app.model import Edition
+    from app.sources import demo
+    slot = clock.edition_for(at("2026-10-24 08:00"))
+    ed = demo.edition("guardian"); ed.kind, ed.layout = "print_front", "full"
+    ed.rail_front = 0                                  # page 1 had only the splash: rail from the website
+    assert "stories" in payload.build(ed, slot)["rail_head"]
+    ed.rail_front = -1
+    assert "front" in payload.build(ed, slot)["rail_head"]

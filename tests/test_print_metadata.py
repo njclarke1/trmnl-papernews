@@ -56,8 +56,9 @@ def test_guardian_morning_uses_printed_page_one(gkey):
                          "radical rethink of options to fix Thames Water")
     ed = GuardianAdapter(g_http(front, picks)).build("am", DAY, review)
     assert ed.kind == "print_front" and ed.lead.url.endswith("/x/2")
-    assert ed.lead.headline == "radical rethink of options to fix Thames Water"
+    assert ed.lead.headline == "Burnham orders radical rethink of options to fix Thames Water"   # not the round-up's fragment
     assert [s.url[-4:] for s in ed.rail][:3] == ["/x/1", "/x/7", "/x/8"]      # rest of page 1, then the web front
+    assert ed.rail_front == 1
     assert all(s.url[-4:] not in ("/x/3", "/x/4", "/x/5") for s in [ed.lead, *ed.rail])
     assert all(not s.paragraphs for s in ed.rail) and len(ed.lead.paragraphs) > 3
 

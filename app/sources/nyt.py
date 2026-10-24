@@ -132,4 +132,4 @@ class NytAdapter:
         others = sorted((top.get(s.url, s) for s, _ in a1 if s.url != hint.url), key=lambda s: rank.get(s.url, 99))
         seen = {hint.url} | {s.url for s in others}
         rail = others + [s for s in stories if s.url not in seen]
-        return Edition("nyt", "print_front", print_lead, rail[:5], built_at=utc_now_iso())
+        return Edition("nyt", "print_front", print_lead, rail[:5], built_at=utc_now_iso(), rail_front=min(len(others), 5))

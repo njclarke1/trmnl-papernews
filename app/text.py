@@ -56,7 +56,7 @@ def flow_tokens(paragraphs: list[str]) -> list[dict]:
 BOILERPLATE = re.compile(
     r"^[-•·\s]*(published|updated|image source|image caption|media caption|getty images|"
     r"become an independent member|want to bookmark|join today|already a member|sign up to|"
-    r"read more:|related:|follow us|share this|listen to this article)\b", re.I)
+    r"follow us|share this|listen to this article)\b|^\s*(read more|related|see also)\s*:", re.I)
 
 
 def paragraphs_from_blob(text: str) -> list[str]:

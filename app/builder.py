@@ -134,7 +134,7 @@ class Builder:
         if f and f.story:
             ed = Edition(paper.key, "print_front", f.story, rail, continued_page=f.continued)
         elif entry:                                 # OCR failed: the round-up's account of the splash
-            head = entry.quoted if len(entry.quoted) > 15 else papers_review.headline_from(entry.summary)
+            head = papers_review.as_headline(entry.quoted) or papers_review.headline_from(entry.summary)
             ed = Edition(paper.key, "print_front", Story(headline=head, standfirst=entry.summary, is_free=False), rail)
         else:
             raise SourceUnavailable(f"{paper.key}: printed front not readable yet")

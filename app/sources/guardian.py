@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 from .. import config, text
 from ..model import Edition, Story
+from . import papers_review
 from .base import Http, ShapeError, SourceUnavailable, best_match, utc_now_iso
 
 API = "https://content.guardianapis.com"
@@ -135,9 +136,9 @@ class GuardianAdapter:
                     stories.insert(0, found[j]); idx = 0
             if idx is not None:
                 stories.insert(0, stories.pop(idx))
-                kind, printed = "print_front", review.quoted
+                kind, printed = "print_front", papers_review.as_headline(review.quoted)
         lead = stories[0]
-        if printed and len(printed) > 15:
+        if printed:
             lead.headline = printed
         return Edition("guardian", kind, lead, stories[1:6], note="", built_at=utc_now_iso())
 
@@ -152,14 +153,18 @@ class GuardianAdapter:
         idx = best_match(review.query, stories) if review is not None else None
         if idx is not None:
             stories.insert(0, stories.pop(idx))
-            if review.quoted and len(review.quoted) > 15:
-                stories[0].headline = review.quoted
+            if papers_review.as_headline(review.quoted):
+                stories[0].headline = papers_review.as_headline(review.quoted)
         rail = stories[1:]
-        try:                                    # fill the rail from the website front
+        on_front = len(rail)
+        try:                                    # fill the rail from the website front, news before features
             seen = {s.url for s in stories}
-            rail += [s for s in (to_story(i) for i in self.picks() if _ok_lead(i)) if s.url not in seen]
+            picks = [i for i in self.picks() if _ok_lead(i)]
+            picks.sort(key=lambda i: "tone/news" not in {t.get("id") for t in i.get("tags", []) or []})
+            rail += [s for s in (to_story(i) for i in picks) if s.url not in seen]
         except (SourceUnavailable, ShapeError):
             pass
         for s in rail:
             s.paragraphs = []
-        return Edition("guardian", "print_front", stories[0], rail[:5], note="", built_at=utc_now_iso())
+        return Edition("guardian", "print_front", stories[0], rail[:5], note="", built_at=utc_now_iso(),
+                       rail_front=min(on_front, 5))

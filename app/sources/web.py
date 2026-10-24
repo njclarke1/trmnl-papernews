@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from .. import text
 from ..model import Edition, Story
 from ..papers import Paper
+from . import papers_review
 from .base import Http, ShapeError, SourceUnavailable, best_match, read_article, utc_now_iso
 
 MIN_LINKS = 5
@@ -94,7 +95,7 @@ class WebAdapter:
             idx = best_match(review.query, cands)
             if idx is not None:
                 cands.insert(0, cands.pop(idx))
-                kind, printed = "print_front", review.quoted
+                kind, printed = "print_front", papers_review.as_headline(review.quoted)
         if print_lead is not None:                       # OCR'd printed splash (FT, Times)
             idx = best_match(print_lead.headline, cands, threshold=0.5)
             hint = cands.pop(idx) if idx is not None else Story(headline=print_lead.headline)
@@ -109,7 +110,7 @@ class WebAdapter:
             cands = cands[1:]
         if lead.live and lead.body_chars < 1500:
             lead.paragraphs = []                          # live blogs: summary layout, not a wall of updates
-        if printed and len(printed) > 15:
+        if printed:
             lead.headline = printed
         rail = []
         for c in cands[:RAIL_FETCH]:

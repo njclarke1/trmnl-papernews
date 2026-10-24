@@ -33,8 +33,10 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
     lay = ed.layout or "summary"
     if lay == "full" and not lead.paragraphs:    # never an empty body zone
         lay = "summary" if ed.image else "briefing"
-    front = ed.kind in ("print_front", "web_front")
     rail = [s for s in ed.rail if s.headline][: RAIL_COUNT.get(lay, 3)]
+    # "Also on the front" only when every rail story really is from that front (the Guardian's and the
+    # NYT's printed fronts are topped up from the website when page 1 has few stories)
+    front = ed.kind == "web_front" or (ed.kind == "print_front" and (ed.rail_front < 0 or ed.rail_front >= len(rail)))
     if lay == "summary" and len(rail) not in (3, 4):
         rail = rail[:3]
     para_from_deck = lay == "briefing" and not lead.paragraphs

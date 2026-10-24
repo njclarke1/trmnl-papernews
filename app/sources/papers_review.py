@@ -66,6 +66,13 @@ def parse(html_or_text: str) -> dict[str, ReviewEntry]:
     return out
 
 
+def as_headline(quoted: str) -> str:
+    """A round-up quote usable as the printed headline, or "" (fragments such as 'online safety laws
+    have failed to protect children' — lower-case, mid-sentence — keep the paper's own headline)."""
+    q = (quoted or "").strip()
+    return q if len(q) > 15 and len(q.split()) >= 4 and q[:1].isupper() else ""
+
+
 def headline_from(summary: str) -> str:
     """A headline-length line from a round-up sentence: 'The Times leads with X.' → 'X'."""
     s = re.sub(r"^(the\s+)?[\w’' ]{1,40}?\b(leads|splashes|opens|reports|says|focuses|carries|runs)\b"

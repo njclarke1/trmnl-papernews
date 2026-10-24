@@ -36,6 +36,7 @@ class Edition:
     data_check: bool = False             # a shape check failed (DATA CHECK)
     layout: str = ""                     # chosen at build time, locked with the edition
     image: str = ""                      # processed photo URL for that layout (served from the volume)
+    rail_front: int = -1                 # how many rail stories are from the printed front (-1: all)
 
     def to_dict(self) -> dict:
         return asdict(self)
