@@ -61,6 +61,7 @@ html,body{margin:0!important;padding:0!important;background:#fff}
   font-variant-numeric:lining-nums proportional-nums;text-wrap:balance;hyphens:manual}
 .fp .deck-rule{width:144px;height:var(--rule);background:var(--ink);margin:16px auto}
 .fp .deck{font:italic 400 38px/48px 'Playfair Display',serif;text-align:center;text-wrap:balance;padding:0 32px;font-variant-numeric:lining-nums}
+.fp .deck.caps{font:600 28px/40px 'Playfair Display',serif;letter-spacing:.08em}
 .fp .byline{display:flex;justify-content:center;align-items:center;gap:16px;height:24px;margin-top:16px;font-size:17px;letter-spacing:.24em}
 .fp .byline i{width:48px;height:var(--hair);background:var(--ink)}
 .fp .left .deck,.fp .left .deck-rule{text-align:left;margin-left:0;padding:0}
@@ -165,7 +166,7 @@ html,body{margin:0!important;padding:0!important;background:#fff}
   <div class="lead{% if layout == "poster" %} left poster{% endif %}">
     <div class="kicker lbl"><span class="chip">{{ lead.kicker }}</span><span class="kind">{{ lead.kind }}</span></div>
     <h1 class="hed" data-lines="{{ lead.lines }}">{{ lead.headline }}</h1>
-    {% if lead.deck != "" %}<div class="deck-rule"></div><p class="deck">{{ lead.deck }}</p>{% endif %}
+    {% if lead.deck != "" %}<div class="deck-rule"></div><p class="deck{% if lead.deck_caps %} caps{% endif %}">{{ lead.deck }}</p>{% endif %}
     <div class="byline lbl"><i></i>{{ lead.byline }}<i></i></div>
   </div>
   {% endcapture %}

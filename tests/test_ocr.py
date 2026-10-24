@@ -125,3 +125,20 @@ def test_dictionary_unavailable_fails_closed(monkeypatch):
 def test_clean_hand_built_page_passes():
     r = extract_splash(Image.new("L", (10, 10)), lines=page(TEXT[:200]))
     assert r.ok, r.reason
+
+
+# ---------------------------------------------------------------- first live NYT splash (24 Oct 2026)
+def test_ocr_tidy_fixes_common_slips():
+    assert S.tidy("in aclose race") == "in a close race"
+    assert S.tidy("D.0.J. said") == "D.O.J. said" and S.tidy("not ll days before") == "not 11 days before"
+    assert S.tidy("a lawsuit about anything") == "a lawsuit about anything"
+
+
+def test_real_hyphens_survive_line_ends():
+    assert S._join(["the four-", "person ballot"]) == "the four-person ballot"
+    assert S._join(["the admin-", "istration said"]) == "the administration said"
+
+
+def test_bylines_are_joined_and_set_in_normal_case():
+    assert S.name_case("DEVLIN BARRETT and KELLEN BROWNING") == "Devlin Barrett and Kellen Browning"
+    assert S.BYLINE_IN_TEXT.search("meant to siphon By DEVLIN BARRETT").group(1).strip() == "DEVLIN BARRETT"

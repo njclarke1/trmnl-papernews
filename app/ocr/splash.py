@@ -245,6 +245,17 @@ def extract_splash(img: Image.Image, *, paper_name: str = "", expected_headline:
     if cur:
         paras.append(_join(cur))
     paras = [_clean(p) for p in paras if p.strip()]
+    found = []
+    for i, p_ in enumerate(paras):
+        m = BYLINE_IN_TEXT.search(p_)
+        if m:
+            found.append(m.group(1).strip())
+            paras[i] = p_[:m.start()].rstrip()
+    paras = [tidy(p_) for p_ in paras if p_]
+    by = re.sub(r"^by\s+", "", byline or "", flags=re.I).strip()
+    if found and (not by or by.lower().startswith("and ")):
+        by = f"{found[0]} {by}".strip()
+    byline = name_case(by)
 
     words = [w for l in shown for w in l.words]          # only the text that will be displayed
     text = " ".join(paras)
@@ -292,10 +303,46 @@ def _join(texts: list[str]) -> str:
     out = ""
     for t in texts:
         if out.endswith("-") and t[:1].islower():
-            out = out[:-1] + t
+            left = re.findall(r"[A-Za-z]+$", out[:-1])
+            right = re.findall(r"^[a-z]+", t)
+            if left and right and not _known(left[0] + right[0]) and _known(left[0]) and _known(right[0]):
+                out = out + t                       # a real hyphen at the line end: "four-" + "person"
+            else:
+                out = out[:-1] + t
         else:
             out = f"{out} {t}" if out else t
     return out
+
+
+def _known(word: str) -> bool:
+    try:
+        return _dict_ratio([word]) == 1.0
+    except Exception:
+        return False
+
+
+BYLINE_IN_TEXT = re.compile(r"\s*\bBy ((?:[A-Z][A-Z.'’-]+ ?){2,5}(?:and (?:[A-Z][A-Z.'’-]+ ?){2,5})?)\s*$")
+
+
+def tidy(text: str) -> str:
+    """Small, safe repairs of common OCR slips in body text."""
+    t = re.sub(r"\b([A-Z])\.0\.([A-Z])\.", r"\1.O.\2.", text)                  # D.0.J. → D.O.J.
+    t = re.sub(r"\bll\b(?= (days|weeks|months|years|hours|minutes|percent|per cent)\b)", "11", t)
+    def split_a(m):                                                          # "aclose" → "a close"
+        w = m.group(0)
+        return f"a {w[1:]}" if not _known(w.lower()) and _known(w[1:].lower()) else w
+    return re.sub(r"\ba[a-z]{3,}\b", split_a, t)
+
+
+def name_case(s: str) -> str:
+    """'DEVLIN BARRETT and KELLEN BROWNING' → 'Devlin Barrett and Kellen Browning'."""
+    if _upper_ratio(s) < 0.7:
+        return s
+    def word(w: str) -> str:
+        if w.lower() == "and":
+            return "and"
+        return "-".join("’".join(x[:1].upper() + x[1:].lower() for x in part.split("’")) for part in w.split("-"))
+    return " ".join(word(w) for w in s.split())
 
 
 _SPELL = None

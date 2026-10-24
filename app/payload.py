@@ -60,6 +60,8 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
             "headline": text.display(lead.headline),
             "lines": text.headline_lines(lead.headline),
             "deck": "" if para_from_deck else text.display(lead.standfirst),
+            # a deck printed in capitals (NYT banks: "CITING SIMILAR NAMES") is set roman and spaced, not italic
+            "deck_caps": sum(c.isupper() for c in lead.standfirst) > 0.8 * max(1, sum(c.isalpha() for c in lead.standfirst)),
             "byline": html.escape(text.clean(lead.byline) or p.short.title()),
             "image": ed.image or None,
             "caption": html.escape(text.clean(" ".join(x for x in (lead.caption, lead.credit) if x))),
