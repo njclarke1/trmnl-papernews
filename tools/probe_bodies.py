@@ -1,7 +1,7 @@
 """Phase 1 probe: can each paper supply Guardian-level content (ranked lead + body + image)?
 
 Run on the NAS (residential IP; the dev sandbox cannot reach these sites):
-  docker run --rm -v ~/fp-probe:/w -w /w python:3.12-slim sh -c \
+  docker run --rm -e DEBIAN_FRONTEND=noninteractive -v ~/fp-probe:/w -w /w python:3.12-slim sh -c \
     "apt-get -qq update && apt-get -qq install -y tesseract-ocr >/dev/null && \
      pip -q install requests beautifulsoup4 lxml trafilatura pillow pytesseract pypdfium2 && python probe_bodies.py"
   (front-page images only: append `fronts`; NYT API + PDF: `nyt`; print metadata + BBC review: `print`;

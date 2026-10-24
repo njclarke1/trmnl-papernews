@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 # Tesseract for the printed-front OCR (FT, The Times; morning edition only)
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends tesseract-ocr \
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update -qq && apt-get install -y -qq --no-install-recommends tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
