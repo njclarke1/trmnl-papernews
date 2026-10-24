@@ -1,0 +1,40 @@
+<!-- papernews · render diagnostic. Paste as a LaraPaper recipe (no polling), render it for the Kindle and
+     photograph the result. It prints what the renderer actually gave the page: window size, pixel ratio,
+     the framework's wrapper classes and any zoom/transform on them. Everything sits in the top-left
+     560×560 CSS px, so it stays readable even if the page is magnified and cropped. -->
+<style>
+html,body{margin:0!important;padding:0!important;background:#fff}
+#dg{position:absolute;top:40px;left:40px;width:500px;font:600 15px/1.35 monospace;color:#000;border:2px solid #000;padding:8px;background:#fff;z-index:9}
+#dg b{font-size:18px}
+.rx{position:absolute;top:0;height:10px;border-left:2px solid #000}
+.ry{position:absolute;left:0;width:10px;border-top:2px solid #000}
+.rl{position:absolute;font:700 12px monospace}
+</style>
+<div id="dg"><b>papernews render diagnostic</b><div id="out">script did not run</div></div>
+<script>
+(function () {
+  var o = [], d = document, de = d.documentElement, sc = d.querySelector('.screen');
+  function cs(el, p) { try { return getComputedStyle(el).getPropertyValue(p).trim() || '-'; } catch (e) { return 'err'; } }
+  o.push('window inner: ' + innerWidth + ' x ' + innerHeight);
+  o.push('client: ' + de.clientWidth + ' x ' + de.clientHeight);
+  o.push('devicePixelRatio: ' + devicePixelRatio);
+  o.push('screen obj: ' + screen.width + ' x ' + screen.height);
+  o.push('body class: ' + (d.body.className || '-'));
+  if (sc) {
+    o.push('.screen class: ' + sc.className.replace(/\s+/g, ' ').trim());
+    ['width', 'height', 'zoom', 'transform', 'transform-origin', '--screen-w', '--screen-h', '--pixel-ratio', '--ui-scale']
+      .forEach(function (p) { o.push('.screen ' + p + ': ' + cs(sc, p)); });
+    var r = sc.getBoundingClientRect();
+    o.push('.screen rect: ' + Math.round(r.width) + ' x ' + Math.round(r.height) + ' @ ' + Math.round(r.left) + ',' + Math.round(r.top));
+  } else { o.push('no .screen wrapper'); }
+  o.push('html zoom: ' + cs(de, 'zoom') + ' · body zoom: ' + cs(d.body, 'zoom'));
+  d.getElementById('out').innerHTML = o.map(function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }).join('<br>');
+  // rulers every 100 CSS px along the top and left edges, labelled
+  for (var i = 100; i <= 1600; i += 100) {
+    var x = d.createElement('div'); x.className = 'rx'; x.style.left = i + 'px'; d.body.appendChild(x);
+    var y = d.createElement('div'); y.className = 'ry'; y.style.top = i + 'px'; d.body.appendChild(y);
+    var lx = d.createElement('div'); lx.className = 'rl'; lx.style.left = (i + 3) + 'px'; lx.style.top = '12px'; lx.textContent = i; d.body.appendChild(lx);
+    var ly = d.createElement('div'); ly.className = 'rl'; ly.style.left = '12px'; ly.style.top = (i + 3) + 'px'; ly.textContent = i; d.body.appendChild(ly);
+  }
+})();
+</script>
