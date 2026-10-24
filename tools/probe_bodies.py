@@ -5,6 +5,7 @@ Run on the NAS (residential IP; the dev sandbox cannot reach these sites):
     "apt-get -qq update && apt-get -qq install -y tesseract-ocr >/dev/null && \
      pip -q install requests beautifulsoup4 lxml trafilatura pillow pytesseract pypdfium2 && python probe_bodies.py"
   (front-page images only: append `fronts`; NYT API + PDF: `nyt`; print metadata + BBC review: `print`;
+   Times/Telegraph public XML + honest user agent: `alt`;
    pass -e GUARDIAN_API_KEY=... -e NYT_API_KEY=... to docker run)
 
 Writes ./report.md, ./results.json and ./raw/*.gz (raw responses become test stubs).
@@ -360,6 +361,62 @@ def print_meta_checks():
         time.sleep(1)
     return row
 
+HONEST_UA = "papernews/1.0 (personal e-ink news display; RSS/XML reader; +https://github.com/njclarke1/trmnl-papernews)"
+FEED_ACCEPT = "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1"
+
+def _try(url, tag, ua, accept=None):
+    """One request with the given identity; never retried, never disguised."""
+    try:
+        h = {"User-Agent": ua, "Accept-Language": "en-GB,en;q=0.9"}
+        if accept:
+            h["Accept"] = accept
+        r = requests.get(url, headers=h, timeout=20)
+        (RAW / f"{tag}.gz").write_bytes(gzip.compress(r.content))
+        txt = r.text
+        titles = re.findall(r"<(?:news:)?title>(?:<!\[CDATA\[)?\s*(.*?)\s*(?:\]\]>)?</(?:news:)?title>", txt)[:4]
+        return {"status": r.status_code, "bytes": len(r.content), "ctype": r.headers.get("content-type", "")[:40],
+                "items": txt.count("<item") + txt.count("<url>"), "titles": titles,
+                "blocked_page": bool(re.search(r"access issue|verifying|unusual activity|captcha", txt[:3000], re.I))}
+    except Exception as e:
+        return {"error": f"{type(e).__name__}: {e}"}
+
+def alt_checks():
+    """24 Oct handoff: are the Times/Telegraph reachable through public XML (feeds, news sitemaps,
+    Google News) with an honest feed-reader identity? And does that identity keep the working sources?"""
+    row = {}
+    for name, ua in (("browser_ua", UA), ("honest_ua", HONEST_UA)):
+        for tag, url in (("tg_rss", "https://www.telegraph.co.uk/rss.xml"),
+                         ("tg_news_rss", "https://www.telegraph.co.uk/news/rss.xml"),
+                         ("tg_robots", "https://www.telegraph.co.uk/robots.txt"),
+                         ("tg_news_sitemap", "https://www.telegraph.co.uk/custom/daily-news/sitemap.xml"),
+                         ("tm_robots", "https://www.thetimes.com/robots.txt")):
+            row[f"{tag}/{name}"] = _try(url, f"alt-{tag}-{name}", ua, FEED_ACCEPT if "robots" not in tag else None)
+            time.sleep(5)
+    # the Times' news sitemap, if robots.txt declares one
+    rb = gzip.decompress((RAW / "alt-tm_robots-honest_ua.gz").read_bytes()).decode("utf-8", "replace") \
+        if (RAW / "alt-tm_robots-honest_ua.gz").exists() else ""
+    maps = [l.split(":", 1)[1].strip() for l in rb.splitlines() if l.lower().startswith("sitemap:")]
+    row["tm_sitemaps_declared"] = maps[:10]
+    for n, m in enumerate([m for m in maps if "news" in m.lower()][:2]):
+        row[f"tm_news_sitemap_{n}"] = {"url": m, **_try(m, f"alt-tm-news-sitemap-{n}", HONEST_UA, FEED_ACCEPT)}
+        time.sleep(5)
+    for tag, dom in (("gn_telegraph", "telegraph.co.uk"), ("gn_times", "thetimes.com")):
+        row[tag] = _try(f"https://news.google.com/rss/search?q=when:24h+allinurl:{dom}&hl=en-GB&gl=GB&ceid=GB:en",
+                        f"alt-{tag}", HONEST_UA, FEED_ACCEPT)
+        time.sleep(5)
+    row["openrss_times"] = _try("https://openrss.org/www.thetimes.com", "alt-openrss-times", HONEST_UA, FEED_ACCEPT)
+    # would an honest identity break what works today?
+    for tag, url in (("bbc_home", "https://www.bbc.co.uk/news"), ("spectator_home", "https://spectator.com"),
+                     ("i_home", "https://inews.co.uk"), ("newworld_home", "https://www.thenewworld.co.uk"),
+                     ("ft_rss", "https://www.ft.com/rss/home/uk"), ("spectator_feed", "https://spectator.com/feed/")):
+        r = _try(url, f"alt-{tag}-honest", HONEST_UA, FEED_ACCEPT if ("rss" in url or "feed" in url) else None)
+        row[f"{tag}/honest_ua"] = {k: r.get(k) for k in ("status", "bytes", "items", "blocked_page", "error")}
+        time.sleep(3)
+    return row
+
+if not sys.argv[1:] or "alt" in sys.argv[1:]:
+    results["_alt"] = alt_checks()
+
 if not sys.argv[1:] or "nyt" in sys.argv[1:]:
     results["_nyt"] = nyt_checks()
 
@@ -411,6 +468,10 @@ if fi:
     lines += ["", "Rule of thumb (synthetic broadsheet test, 21 Oct): body text OCRs reliably at ≥1200 px wide (98–100% word recall),"
               " is marginal at 1000 px (92–99%) and fails at 800 px. Real fronts also need ≥150 words at ≥80% confidence.", ""]
     lines += [f"**{k} sample:** {v.get('ocr_sample','')[:400]}" for k, v in fi.items()] + [""]
+al = results.get("_alt")
+if al:
+    lines += ["## Alternative public XML routes (Times, Telegraph) and an honest user agent", "", "```",
+              json.dumps(al, indent=1, default=str)[:6000], "```", ""]
 tp = results.get("_tomorrowspapers")
 if tp:
     lines += ["## tomorrowspapers.co.uk editions (masthead OCR)", "",

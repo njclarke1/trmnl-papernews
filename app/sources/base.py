@@ -31,6 +31,9 @@ CHALLENGE = ("cf-chl", "just a moment...", "attention required", "px-captcha", "
              "access denied", "are you a robot", "captcha-delivery")
 
 
+FEED_ACCEPT = "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1"
+
+
 class Http:
     def __init__(self, session: requests.Session | None = None):
         self.s = session or requests.Session()
@@ -60,6 +63,25 @@ class Http:
             if any(c in head for c in CHALLENGE) and "<article" not in head:
                 raise SourceUnavailable(f"{host}: challenge page")
         return r
+
+    def feed(self, url: str) -> str:
+        """An RSS/Atom/XML feed, fetched politely: feed Accept header and a conditional request
+        (If-None-Match / If-Modified-Since). A 304 returns the copy kept from last time."""
+        key = hashlib.sha1(url.encode()).hexdigest()
+        hit = store.cache_get("feed", key) or {}
+        headers = {"Accept": FEED_ACCEPT}
+        if hit.get("etag"):
+            headers["If-None-Match"] = hit["etag"]
+        if hit.get("modified"):
+            headers["If-Modified-Since"] = hit["modified"]
+        r = self.get(url, headers=headers)
+        if getattr(r, "status_code", 200) == 304 and hit.get("body"):
+            return hit["body"]
+        h = getattr(r, "headers", None) or {}
+        body = r.text
+        if h.get("ETag") or h.get("Last-Modified"):
+            store.cache_put("feed", key, {"etag": h.get("ETag", ""), "modified": h.get("Last-Modified", ""), "body": body})
+        return body
 
 
 # ----------------------------------------------------------------------------- JSON-LD articles

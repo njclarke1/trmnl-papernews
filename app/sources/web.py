@@ -69,7 +69,7 @@ class WebAdapter:
         rss: list[Story] = []
         for u in self.p.rss:
             try:
-                rss = rss_items(self.http.get(u).text)
+                rss = rss_items(self.http.feed(u))
                 if rss:
                     break
             except SourceUnavailable:

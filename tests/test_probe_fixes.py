@@ -260,3 +260,24 @@ def test_byline_from_meta_author_when_jsonld_has_none():
     page = ('<html><head><meta name="author" content="Alastair Campbell"><script type="application/ld+json">'
             '{"@type":"Article","headline":"H"}</script></head><body><p>x</p></body></html>')
     assert read_article(FakeHttp({"https://x/": page}), "https://x/a").byline == "Alastair Campbell"
+
+
+def test_feeds_are_fetched_conditionally():
+    seen = []
+
+    class S:
+        headers = {}
+
+        def get(self, url, timeout=20, headers=None, **kw):
+            seen.append(dict(headers or {}))
+            r = requests.Response()
+            r.url, r.status_code = url, (304 if headers and headers.get("If-None-Match") == '"v1"' else 200)
+            r._content = b"" if r.status_code == 304 else b"<rss><channel><item><title>A</title></item></channel></rss>"
+            r.headers["Content-Type"] = "application/rss+xml; charset=utf-8"
+            r.headers["ETag"] = '"v1"'
+            return r
+    h = Http(S())
+    first = h.feed("https://example.org/rss.xml")
+    second = h.feed("https://example.org/rss.xml")
+    assert first == second and "<title>A</title>" in second            # the 304 served the kept copy
+    assert seen[0]["Accept"].startswith("application/rss+xml") and seen[1]["If-None-Match"] == '"v1"'
