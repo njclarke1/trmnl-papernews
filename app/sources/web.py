@@ -90,6 +90,7 @@ class WebAdapter:
 
     def build(self, slot_kind: str, day_iso: str, review=None, print_lead: Story | None = None) -> Edition:
         kind, cands = self.candidates()
+        from_feed = kind == "latest"          # RSS order is not a front: the rail is then just 'more stories'
         printed = ""
         if slot_kind == "am" and review is not None:
             idx = best_match(review.query, cands)
@@ -123,4 +124,4 @@ class WebAdapter:
                 rail.append(s)
         if not lead.headline or len(rail) < 3:
             raise ShapeError(f"{self.p.key}: lead missing or only {len(rail)} other stories")
-        return Edition(self.p.key, kind, lead, rail, built_at=utc_now_iso())
+        return Edition(self.p.key, kind, lead, rail, built_at=utc_now_iso(), rail_front=0 if from_feed else -1)

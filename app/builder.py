@@ -109,6 +109,8 @@ class Builder:
                 adapter = NytAdapter(self.http) if paper.source == "nyt" else WebAdapter(paper, self.http)
                 ed = adapter.build(slot.kind, slot.day.isoformat(), entry, print_lead)
                 ed.continued_page = cont if ed.kind == "print_front" else None
+                if ed.kind == "print_front" and print_lead is None:      # splash named by the round-ups only
+                    ed.note = f"{paper.note_web.split(' · ')[0]} · splash named by the paper reviews"
         ed.built_at = ed.built_at or clock.now().isoformat(timespec="seconds")
         ed.note = ed.note or (paper.note_print if ed.kind == "print_front" and paper.note_print else paper.note_web)
         ed.layout = layout.choose(ed, paper)
@@ -135,7 +137,8 @@ class Builder:
             ed = Edition(paper.key, "print_front", f.story, rail, continued_page=f.continued)
         elif entry:                                 # OCR failed: the round-up's account of the splash
             head = papers_review.as_headline(entry.quoted) or papers_review.headline_from(entry.summary)
-            ed = Edition(paper.key, "print_front", Story(headline=head, standfirst=entry.summary, is_free=False), rail)
+            ed = Edition(paper.key, "print_front", Story(headline=head, standfirst=entry.summary, is_free=False), rail,
+                         note="Printed front · splash from the paper reviews")
         else:
             raise SourceUnavailable(f"{paper.key}: printed front not readable yet")
         ed.built_at = clock.now().isoformat(timespec="seconds")

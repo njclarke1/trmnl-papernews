@@ -71,6 +71,7 @@ def test_blocked_article_pages_fall_back_to_the_feed():
     ed = WebAdapter(PAPERS["ft"], http).build("pm", "2026-10-24")
     assert ed.kind == "latest" and ed.lead.headline == "FT story 0" and ed.lead.standfirst == "Standfirst 0"
     assert "width=1200" in ed.lead.image_url and len(ed.rail) >= 3
+    assert ed.rail_front == 0                                   # a feed is not a front: "More stories"
 
 
 # ----------------------------------------------------------------------------- print-only papers

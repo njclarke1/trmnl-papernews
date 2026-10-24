@@ -55,7 +55,7 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
         "paper": {"key": p.key, "name": p.name, "np": p.np, "sub": "THE i PAPER" if p.key == "i" else ""},
         "qr": images.qr_url(lead.url),
         "lead": {
-            "kicker": html.escape(lead.section or ("Exclusive" if ed.kind == "print_front" else "News")),
+            "kicker": html.escape(lead.section or "News"),
             "kind": kicker_kind(ed.kind),
             "headline": text.display(lead.headline),
             "lines": text.headline_lines(lead.headline),
