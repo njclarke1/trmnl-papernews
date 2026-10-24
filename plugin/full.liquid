@@ -243,7 +243,8 @@ document.querySelectorAll('.fp .list.fixed').forEach(b=>{const ph=b.parentElemen
 // 5. baseline snap + word flow across columns; end on a full stop if it costs <=12 words
 document.querySelectorAll('[data-flow]').forEach(page=>{
   const boxes=[...page.querySelectorAll('.flow')];
-  page.querySelectorAll('.fig').forEach(f=>{const h=f.getBoundingClientRect().height;f.style.height=Math.ceil(h/40)*40+'px';});
+  // snap the figure to the 40px baseline grid, always leaving at least 16px of air above the text
+  page.querySelectorAll('.fig').forEach(f=>{const h=f.getBoundingClientRect().height;f.style.height=Math.ceil((h+16)/40)*40+'px';});
   boxes.forEach(b=>{b.style.flex='0 0 auto';const col=b.parentElement;let used=0;
     [...col.children].forEach(c=>{if(c!==b)used+=c.getBoundingClientRect().height;});
     b.style.height=Math.max(0,Math.floor((col.clientHeight-used)/40)*40)+'px';});

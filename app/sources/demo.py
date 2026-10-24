@@ -169,6 +169,9 @@ def states() -> dict[str, Edition]:
     noimg = edition("guardian")
     noimg.lead.image_url = ""
     out["no-image"] = noimg
+    nocap = edition("guardian")                        # photo with no caption (BBC): text must not touch it
+    nocap.lead.caption = nocap.lead.credit = ""
+    out["no-caption"] = nocap
     cached = edition("bbc")
     cached.stale = True
     out["cached"] = cached
