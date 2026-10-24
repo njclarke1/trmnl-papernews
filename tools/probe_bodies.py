@@ -349,7 +349,16 @@ if not sys.argv[1:] or "fronts" in sys.argv[1:]:
     results["_front_images"] = {k: front_image(k, s) for k, s in FRONTS.items()}
     results["_front_images"]["times"] = front_image_tp("times", r"\bthe times\b(?!.*(financial|sunday|new york|india))")
 
-(OUT / "results.json").write_text(json.dumps(results, indent=1, default=str))
+def redact(t):
+    """API keys can appear in error messages (requests echoes the URL); never let them into the outputs."""
+    import os
+    for k in ("GUARDIAN_API_KEY", "NYT_API_KEY"):
+        v = os.environ.get(k, "")
+        if len(v) > 6:
+            t = t.replace(v, "KEY")
+    return t
+
+(OUT / "results.json").write_text(redact(json.dumps(results, indent=1, default=str)))
 
 def yn(b): return "✅" if b else "❌"
 lines = ["# Front-page body probe", f"_Run {time.strftime('%Y-%m-%d %H:%M')}_", "",
@@ -389,5 +398,5 @@ if pm:
     lines += ["## Print metadata (Guardian page 1, NYT A1) and the BBC review", "", "```", json.dumps(pm, indent=1, default=str)[:5000], "```", ""]
 pr = results.get("_papers_review")
 if pr: lines += ["## PA 'What the papers say'", f"index {pr['index_status']}, links {pr['links'][:2]}", ""]
-(OUT / "report.md").write_text("\n".join(lines))
+(OUT / "report.md").write_text(redact("\n".join(lines)))
 print("\n".join(lines[:12]))
