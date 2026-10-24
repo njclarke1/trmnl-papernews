@@ -10,20 +10,27 @@
 
 **The native framebuffer is 1236 × 1648 portrait, so the preset needs no scaling. papernews is designed at exactly that size.**
 
-## Decision: portrait
+## Decision: portrait — needs a custom device model
 
-The template (`plugin/full.liquid`) is a 1236 × 1648 portrait page. Set device 3 to:
+**First test (24 Oct):** the test pattern came out magnified about 2.06×, showing only the top-left 800 × 600 or so of the page, on a landscape canvas.
+- Cause: when a device has a model assigned, LaraPaper renders with the **model's** width, height, rotation and scale. The device's own width, height and rotate fields are only a fallback (`ImageGenerationService::getImageSettings`).
+- The PW Signature 11th Gen preset is 1648 × 1236, rotation 90, `scale_factor` 2.06. That suits TRMNL's 800-px layouts; papernews is a native 1236 × 1648 page.
+
+**Fix:** go to Device Models (`/device-models`), duplicate "Amazon Kindle PW Signature 11th Gen" (the copy is `source: manual`, so model syncs leave it alone), and set:
 
 | Field | Value |
 |---|---|
-| width | 1236 |
-| height | 1648 |
-| rotate | 0 |
-| refresh (device, or the playlist's refresh time) | 180 s, the same as `SLOT_MINUTES=3` |
+| label | Kindle PW11 portrait (native) |
+| width × height | 1236 × 1648 |
+| scale factor | 1 |
+| rotation | 0 |
+| colours / bit depth / type | 16 / 4 / PNG (unchanged) |
 
-Then check the delivered PNG is still 1236 × 1648 and the right way up, and mount the Kindle upright (USB-C at the bottom).
+Then assign device 3 to the new model and regenerate (`php artisan trmnl:screen:generate 3`). Check that the frame touches all four edges, the circle is round, the line boxes are crisp and all 16 greys are distinct. Mount the Kindle upright, with USB-C at the bottom.
 
-Rotation is set per device, not per plugin. Anything else on device 3's playlist would also need a portrait layout.
+Device refresh, or the playlist's refresh time: 180 s, the same as `SLOT_MINUTES=3`.
+
+Rotation is set per device. Anything else on device 3's playlist would also need a 1236 × 1648 portrait layout.
 
 ## LaraPaper plugin settings
 
