@@ -29,6 +29,10 @@ So the framework lays recipes out on an 800 × 600 CSS screen and scales it 2.06
 1. **Device model:** a manual copy of the PW11 preset at 1236 × 1648, rotation 0 (scale factor 1). This sets the window size and stops the 90° rotation. *Done.*
 2. **Templates:** `full.liquid`, the test pattern and the diagnostic reset `.screen` (`transform: none`, 1236 × 1648) themselves (commit 493c33c). This works whatever the framework's CSS class or variables say, so clearing the CSS name and variables on the model is now optional tidying. The render harness renders inside the same wrapper and checks the page box is 0, 0, 1236, 1648.
 
+**Test pattern after the fix (24 Oct): geometry passes.** The frame reaches all four edges, the circle is round and the 1-px line boxes are crisp. **The grey ramp fails:** only 8 levels show (00, 11, 33, 55, 99, cc, ee, ff); 22/44, 66/77, 88/aa and bb/dd merge into their neighbours.
+- Cause: the `gray-16` palette has `colors: null`, so the image pipeline (`epaper-pipeline-php` `ImageStage::quantize`) runs an *adaptive* `quantizeImage(16, GRAY, dither)`. It picks the 16 greys that best fit each image's histogram, with anti-aliased text taking most of the slots, rather than the panel's 16 fixed levels.
+- Fix: in **Device Palettes** (`/device-palettes`), create `kindle-gray16-fixed` with grays 16, framework class `screen--4bit` and colours `#000000 #111111 #222222 #333333 #444444 #555555 #666666 #777777 #888888 #999999 #aaaaaa #bbbbbb #cccccc #dddddd #eeeeee #ffffff`. Set it as the palette on the portrait model. With an explicit colour list, the pipeline remaps to exactly those levels (`applyColormap`) before quantising.
+
 Device refresh, or the playlist's refresh time: 180 s, the same as `SLOT_MINUTES=3`.
 
 Rotation is set per device. Anything else on device 3's playlist would also need a 1236 × 1648 portrait layout.
