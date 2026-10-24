@@ -53,10 +53,17 @@ def flow_tokens(paragraphs: list[str]) -> list[dict]:
     return out
 
 
+BOILERPLATE = re.compile(
+    r"^[-•·\s]*(published|updated|image source|image caption|media caption|getty images|"
+    r"become an independent member|want to bookmark|join today|already a member|sign up to|"
+    r"read more:|related:|follow us|share this|listen to this article)\b", re.I)
+
+
 def paragraphs_from_blob(text: str) -> list[str]:
-    """Split extracted article text into paragraphs (newline-separated or one blob)."""
+    """Split extracted article text into paragraphs (newline-separated or one blob), dropping
+    page furniture the extractor lets through (BBC "Published", Independent membership prompts)."""
     parts = [clean(p) for p in re.split(r"\n\s*\n|\n", text or "")]
-    return [p for p in parts if len(p) > 1]
+    return [p for p in parts if len(p) > 1 and not BOILERPLATE.match(p)]
 
 
 def plain_words(text: str) -> int:

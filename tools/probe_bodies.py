@@ -43,8 +43,8 @@ PAPERS = {
   "economist": dict(home="https://www.economist.com",
                     rss=["https://www.economist.com/latest/rss.xml", "https://www.economist.com/the-world-this-week/rss.xml"],
                     art=r"^/[a-z-]+/\d{4}/\d{2}/\d{2}/[a-z0-9-]+$"),
-  "spectator": dict(home="https://www.spectator.co.uk",
-                    rss=["https://www.spectator.co.uk/feed/"],
+  "spectator": dict(home="https://spectator.com",
+                    rss=["https://spectator.com/feed/", "https://www.spectator.co.uk/feed/"],
                     art=r"^/article/[a-z0-9-]+/?$"),
   "ft":        dict(home="https://www.ft.com",
                     rss=["https://www.ft.com/rss/home/uk", "https://www.ft.com/rss/home", "https://www.ft.com/?format=rss"],
@@ -177,8 +177,11 @@ if not sys.argv[1:]:
         results["_papers_review"]["latest_status"] = c2
         results["_papers_review"]["latest_text"] = BeautifulSoup(h2 or "", "lxml").get_text(" ", strip=True)[:3000]
 
-# ---- published front-page images: resolution + OCR legibility (frontpages.com og:image) ----
-FRONTS = {"ft": "financial-times", "guardian": "the-guardian", "telegraph": "the-daily-telegraph", "i": "i-newspaper"}
+# ---- published front-page images: resolution + OCR legibility ----
+# frontpages.com carries only the FT among our UK papers (24 Oct probe), filed under its upload time
+# (the evening before). tomorrowspapers.co.uk carries the rest, but its pages don't name the paper:
+# each image's masthead band is OCR'd to identify it, as the app does.
+FRONTS = {"ft": "financial-times"}
 def front_image(key, slug):
     code, html, final = get(f"https://www.frontpages.com/{slug}", f"{key}-front-page")
     row = {"page_status": code}
@@ -186,48 +189,52 @@ def front_image(key, slug):
         return row
     og = BeautifulSoup(html, "lxml").find("meta", property="og:image")
     row["image_url"] = og.get("content") if og else None
-    if not row["image_url"]:
-        return row
-    try:
-        r = S.get(row["image_url"], timeout=30); (RAW / f"{key}-front.jpg").write_bytes(r.content)
-        from PIL import Image; import io
-        im = Image.open(io.BytesIO(r.content)).convert("L"); row["size"] = im.size
-        try:
-            import pytesseract
-            big = im.resize((im.width * 2, im.height * 2), Image.LANCZOS)      # upscale helps small type
-            d = pytesseract.image_to_data(big, config="--psm 3", output_type=pytesseract.Output.DICT)
-            words = [(w, float(c)) for w, c in zip(d["text"], d["conf"]) if w.strip() and float(c) >= 0]
-            good = [w for w, c in words if c >= 80]
-            row.update(ocr_words=len(words), ocr_words_conf80=len(good),
-                       ocr_mean_conf=round(sum(c for _, c in words) / max(len(words), 1), 1),
-                       ocr_sample=" ".join(good[:80]))
-        except Exception as e:
-            row["ocr_error"] = f"{type(e).__name__}: {e}"
-    except Exception as e:
-        row["image_error"] = f"{type(e).__name__}: {e}"
+    if row["image_url"] and "/g/" in row["image_url"]:
+        row.update({k: v for k, v in _ocr_url(key, row["image_url"]).items() if k != "image_url"})
     return row
 
-def front_image_tp(key, title_re):
-    """The Times isn't on frontpages.com: look through tomorrowspapers.co.uk's nightly entries for it."""
-    code, html, final = get("https://www.tomorrowspapers.co.uk/", f"{key}-tp-index")
+MASTHEADS = [("ft", r"financial\s*times|\bft\.com\b"),
+             ("times", r"(?<!sunday )(?<!york )(?<!financial )\bthe\s*times\b(?! of)|thetimes\.(?:com|co\.uk)"),
+             ("telegraph", r"(?<!sunday )\btelegraph\b|telegraph\.co\.uk"),
+             ("guardian", r"\bthe\s*guardian\b|theguardian\.com"), ("i", r"inews\.co\.uk")]
+def tp_scan():
+    """Every tomorrowspapers.co.uk edition for today and tomorrow: image size, masthead OCR, identity."""
+    import datetime as dt
+    code, html, final = get("https://www.tomorrowspapers.co.uk/", "tp-index")
     if code != 200:
-        return {"page_status": code}
+        return {"index_status": code}
+    days = {str(dt.date.today()), str(dt.date.today() + dt.timedelta(days=1))}
     entries = [up.urljoin(final, a["href"]) for a in BeautifulSoup(html, "lxml").find_all("a", href=True)
-               if re.search(r"/\d{4}-\d{2}-\d{2}-[0-9a-f]{6}/?$", a["href"])]
-    for n, u in enumerate(dict.fromkeys(entries[:30])):
-        c, h, _ = get(u, f"{key}-tp-{n}")
-        if c != 200: continue
-        soup = BeautifulSoup(h, "lxml"); title = (soup.title.string if soup.title else "") or ""
-        if re.search(title_re, title, re.I):
-            og = soup.find("meta", property="og:image")
-            imgs = [i.get("src") for i in soup.find_all("img") if i.get("src") and "uploads" in i.get("src")]
-            url = (og.get("content") if og else None) or (imgs[0] if imgs else None)
-            row = {"page_status": c, "entry": u, "title": title.strip()[:120]}
-            if url:
-                row.update(_ocr_url(key, url))
-            return row
-        time.sleep(1)
-    return {"page_status": code, "note": f"no entry matching {title_re} in first 30"}
+               if re.search(r"/(\d{4}-\d{2}-\d{2})-[0-9a-f]{6}/?$", a["href"]) and
+               re.search(r"/(\d{4}-\d{2}-\d{2})-", a["href"]).group(1) in days]
+    rows, saved = [], set()
+    for n, u in enumerate(list(dict.fromkeys(entries))[:40]):
+        c, h, _ = get(u, f"tp-{n}")
+        if c != 200:
+            rows.append({"entry": u, "status": c}); continue
+        imgs = [i.get("src") for i in BeautifulSoup(h, "lxml").find_all("img") if "/wp-content/uploads/20" in (i.get("src") or "")]
+        imgs = [i for i in imgs if "Logo" not in i]
+        row = {"entry": u, "image": imgs[0] if imgs else None}
+        if imgs:
+            try:
+                r = S.get(imgs[0], timeout=30)
+                from PIL import Image; import io, pytesseract
+                im = Image.open(io.BytesIO(r.content)).convert("L"); row["size"] = im.size
+                band = im.crop((0, 0, im.width, int(im.height * 0.16)))
+                band = band.resize((band.width * 2, band.height * 2), Image.LANCZOS) if band.width < 2000 else band
+                txt = re.sub(r"\s+", " ", pytesseract.image_to_string(band, config="--psm 3")).lower()
+                row["masthead_text"] = txt[:160]
+                key = None if re.search(r"\bsunday\b|\bobserver\b", txt) else \
+                    next((k for k, pat in MASTHEADS if re.search(pat, txt)), None)
+                row["identified"] = key
+                if key and key not in saved:
+                    saved.add(key); (RAW / f"{key}-tp-front.jpg").write_bytes(r.content)
+                    if key in ("times", "telegraph"):
+                        row["ocr"] = {k: v for k, v in _ocr_url(f"{key}-tp", imgs[0]).items() if k != "image_url"}
+            except Exception as e:
+                row["error"] = f"{type(e).__name__}: {e}"
+        rows.append(row); time.sleep(1)
+    return {"index_status": code, "entries": len(entries), "identified": sorted(saved), "rows": rows}
 
 def _ocr_url(key, url):
     row = {"image_url": url}
@@ -318,25 +325,39 @@ def print_meta_checks():
     if nk:
         try:
             time.sleep(13)                                   # NYT: 5 calls a minute
-            r = S.get("https://api.nytimes.com/svc/search/v2/articlesearch.json", timeout=20, params={
-                "api-key": nk, "begin_date": f"{today - dt.timedelta(days=1):%Y%m%d}", "end_date": f"{today:%Y%m%d}",
-                "fq": 'print_page:1 AND print_section:"A"', "sort": "newest"})
-            (RAW / "nyt-a1.json.gz").write_bytes(gzip.compress(r.content.replace(nk.encode(), b"KEY")))
-            docs = ((r.json().get("response") or {}).get("docs") or []) if r.ok else []
-            row["nyt_a1"] = dict(status=r.status_code, docs=len(docs), first=[
-                (d.get("print_section"), d.get("print_page"), (d.get("headline") or {}).get("print_headline"),
-                 d.get("pub_date"), type(d.get("multimedia")).__name__) for d in docs[:8]])
+            variants = [None, 'print_page:1 AND print_section:"A"', 'print_page:"1"', "print_page:1",
+                        'print_section:("A") AND print_page:("1")']
+            for n, fq in enumerate(variants):
+                params = {"api-key": nk, "begin_date": f"{today - dt.timedelta(days=2):%Y%m%d}", "end_date": f"{today:%Y%m%d}",
+                          "sort": "newest"}
+                if fq:
+                    params["fq"] = fq
+                r = S.get("https://api.nytimes.com/svc/search/v2/articlesearch.json", timeout=20, params=params)
+                (RAW / f"nyt-search-{n}.json.gz").write_bytes(gzip.compress(r.content.replace(nk.encode(), b"KEY")))
+                body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+                resp = body.get("response") or {}
+                docs = resp.get("docs") or []
+                row[f"nyt_search_{n}"] = dict(fq=fq, status=r.status_code, hits=(resp.get("metadata") or resp.get("meta") or {}).get("hits"),
+                                              fault=str(body.get("fault") or body.get("errors") or "")[:200],
+                                              first=[(d.get("print_section"), d.get("print_page"),
+                                                      (d.get("headline") or {}).get("print_headline"), d.get("pub_date"))
+                                                     for d in docs[:6]],
+                                              keys=sorted(docs[0].keys()) if docs else [])
+                time.sleep(13)
         except Exception as e:
             row["nyt_a1"] = {"error": f"{type(e).__name__}: {e}"}
-    for idx in ("https://www.bbc.co.uk/news/blogs/the_papers", "https://www.bbc.co.uk/news/uk"):
-        code, html, final = get(idx, "bbc-papers-index-" + idx.rsplit("/", 1)[-1])
-        links = [(a.get_text(" ", strip=True)[:90], a["href"]) for a in BeautifulSoup(html or "", "lxml").find_all("a", href=True)
-                 if re.match(r"\s*(newspaper headlines|the papers)", a.get_text(" "), re.I)]
-        row[f"bbc_{idx.rsplit('/', 1)[-1]}"] = dict(status=code, final=final, links=links[:5])
-        if links and code == 200:
-            u = up.urljoin(final, links[0][1]); c2, h2, _ = get(u, "bbc-papers-article")
-            row["bbc_article"] = dict(url=u, status=c2, sample=re.sub(r"\s+", " ", BeautifulSoup(h2 or "", "lxml").get_text(" "))[:1200])
-            break
+    code, html, final = get("https://www.bbc.co.uk/news/topics/cpml2v678pxt", "bbc-papers-topic")
+    links = list(dict.fromkeys(up.urljoin(final, a["href"]) for a in BeautifulSoup(html or "", "lxml").find_all("a", href=True)
+                               if "/news/articles/" in a["href"]))
+    row["bbc_topic"] = dict(status=code, links=links[:4])
+    for n, u in enumerate(links[:2]):
+        c2, h2, _ = get(u, f"bbc-papers-article-{n}")
+        soup = BeautifulSoup(h2 or "", "lxml")
+        pub = re.search(r'"datePublished"\s*:\s*"([^"]+)"', h2 or "")
+        figs = [(i.get("alt") or "")[:100] for i in soup.find_all("img")][:12]
+        row[f"bbc_article_{n}"] = dict(url=u, status=c2, published=pub.group(1) if pub else None, img_alts=figs,
+                                       paras=[p.get_text(" ", strip=True)[:160] for p in soup.find_all("p")][:16])
+        time.sleep(1)
     return row
 
 if not sys.argv[1:] or "nyt" in sys.argv[1:]:
@@ -347,7 +368,7 @@ if not sys.argv[1:] or "print" in sys.argv[1:]:
 
 if not sys.argv[1:] or "fronts" in sys.argv[1:]:
     results["_front_images"] = {k: front_image(k, s) for k, s in FRONTS.items()}
-    results["_front_images"]["times"] = front_image_tp("times", r"\bthe times\b(?!.*(financial|sunday|new york|india))")
+    results["_tomorrowspapers"] = tp_scan()
 
 def redact(t):
     """API keys can appear in error messages (requests echoes the URL); never let them into the outputs."""
@@ -390,6 +411,14 @@ if fi:
     lines += ["", "Rule of thumb (synthetic broadsheet test, 21 Oct): body text OCRs reliably at ≥1200 px wide (98–100% word recall),"
               " is marginal at 1000 px (92–99%) and fails at 800 px. Real fronts also need ≥150 words at ≥80% confidence.", ""]
     lines += [f"**{k} sample:** {v.get('ocr_sample','')[:400]}" for k, v in fi.items()] + [""]
+tp = results.get("_tomorrowspapers")
+if tp:
+    lines += ["## tomorrowspapers.co.uk editions (masthead OCR)", "",
+              f"index {tp.get('index_status')}, {tp.get('entries')} entries, identified: {tp.get('identified')}", "",
+              "| Entry | Size | Identified | Masthead text |", "|---|---|---|---|"]
+    lines += [f"| {r.get('entry','').rsplit('/', 2)[-2]} | {r.get('size')} | {r.get('identified')} | {(r.get('masthead_text') or r.get('error') or '')[:90]} |"
+              for r in tp.get("rows", [])]
+    lines += [""] + [f"**{r['identified']} OCR:** {json.dumps(r['ocr'])[:600]}" for r in tp.get("rows", []) if r.get("ocr")] + [""]
 ny = results.get("_nyt")
 if ny:
     lines += ["## The New York Times (API + printed-front PDF)", "", "```", json.dumps(ny, indent=1, default=str)[:3000], "```", ""]

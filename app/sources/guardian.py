@@ -94,15 +94,23 @@ class GuardianAdapter:
         return r.json().get("response", {}).get("results", [])
 
     def front_page(self, day_iso: str) -> list[dict]:
-        """Today's printed page 1, from the API's print metadata. [] if it isn't there (yet)."""
-        r = self.http.get(f"{API}/search", params={**_params(**{
-            "use-date": "newspaper-edition", "from-date": day_iso, "to-date": day_iso, "page-size": 50,
-            "order-by": "newest"}), "show-fields": PRINT_FIELDS, "show-tags": "tone,newspaper-book"})
-        try:
-            results = r.json()["response"]["results"]
-        except (KeyError, ValueError):
-            return []
-        return [i for i in results if on_front(i, day_iso)]
+        """Today's printed page 1, from the API's print metadata. [] if it isn't there (yet).
+        Filtered to the main book; a Saturday edition runs to 100+ articles, so page through."""
+        front: list[dict] = []
+        for page in range(1, 4):
+            r = self.http.get(f"{API}/search", params={**_params(**{
+                "use-date": "newspaper-edition", "from-date": day_iso, "to-date": day_iso, "page-size": 50,
+                "order-by": "newest", "tag": MAIN_BOOK, "page": page}),
+                "show-fields": PRINT_FIELDS, "show-tags": "tone,newspaper-book"})
+            try:
+                resp = r.json()["response"]
+                results = resp["results"]
+            except (KeyError, ValueError):
+                break
+            front += [i for i in results if on_front(i, day_iso)]
+            if page >= int(resp.get("pages") or 1):
+                break
+        return front
 
     def build(self, slot_kind: str, day_iso: str, review=None) -> Edition:
         if slot_kind == "am":

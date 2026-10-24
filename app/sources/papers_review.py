@@ -66,6 +66,14 @@ def parse(html_or_text: str) -> dict[str, ReviewEntry]:
     return out
 
 
+def headline_from(summary: str) -> str:
+    """A headline-length line from a round-up sentence: 'The Times leads with X.' → 'X'."""
+    s = re.sub(r"^(the\s+)?[\w’' ]{1,40}?\b(leads|splashes|opens|reports|says|focuses|carries|runs)\b"
+               r"(\s+(with|on|that))?\s+", "", summary.strip(), flags=re.I)
+    s = re.split(r"(?<=[.!?])\s", s)[0].rstrip(".")
+    return (s[:1].upper() + s[1:])[:140] if s else summary[:140]
+
+
 def agree(a: ReviewEntry, b: ReviewEntry) -> bool:
     return match_score(a.query, b.query) >= 0.35 and len(tokens(a.query) & tokens(b.query)) >= 2
 

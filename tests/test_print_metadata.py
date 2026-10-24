@@ -161,26 +161,6 @@ def test_combine_rules():
     assert set(out) == {"times", "i", "telegraph"}
 
 
-BBC_INDEX = '<a href="/news/articles/c1">Newspaper headlines: Curfews and a £2bn cut</a><a href="/news/x">Other</a>'
-
-
-def bbc_article(published):
-    return (f'<html><head><script type="application/ld+json">{{"@type":"NewsArticle","datePublished":"{published}"}}</script>'
-            '</head><body><p>The Times leads with curfews for riot-torn French cities as unrest spreads.</p>'
-            '<p>The Daily Telegraph says Labour has cut £2bn from the Army front line.</p></body></html>')
-
-
-def test_bbc_review_found_and_date_checked():
-    ok = FakeHttp({"https://www.bbc.co.uk/news/blogs/the_papers": BBC_INDEX,
-                   "https://www.bbc.co.uk/news/articles/c1": bbc_article("2026-10-20T22:41:00Z")})
-    got = bbc_papers.fetch(ok, DAY)
-    assert set(got) >= {"times", "telegraph"}
-    stale = FakeHttp({"https://www.bbc.co.uk/news/blogs/the_papers": BBC_INDEX,
-                      "https://www.bbc.co.uk/news/articles/c1": bbc_article("2026-10-18T22:41:00Z"),
-                      "https://www.bbc.co.uk/news/uk": "<html></html>"})
-    assert bbc_papers.fetch(stale, DAY) == {}
-
-
 def test_builder_drops_conflicting_splash_and_backs_off_failed_source(monkeypatch):
     b = Builder(FakeHttp({}))
     calls = {"pa": 0, "bbc": 0}

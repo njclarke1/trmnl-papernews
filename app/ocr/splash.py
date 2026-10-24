@@ -314,3 +314,51 @@ def _dict_ratio(tokens: list[str]) -> float:
         return sum(w in known for w in words) / len(words)
     except Exception:                              # dictionary unavailable: fail closed, never pass unchecked text
         return 0.0
+
+
+# --------------------------------------------------------------------------- the rest of the front
+def front_headlines(lines: list[Line], *, splash: str = "", paper_name: str = "", limit: int = 5,
+                    min_conf: float = 80.0, min_dict_ratio: float = 0.8) -> list[str]:
+    """Other headlines on the printed front (for print-only papers' rail): headline-sized line groups
+    below the masthead, excluding the splash, puffs set in caps and anything that doesn't read as
+    English. Largest first, then top-to-bottom."""
+    if not lines:
+        return []
+    try:
+        hb = _body_height(lines)
+    except ValueError:
+        return []
+    page_h = max(l.y1 for l in lines)
+    top = [l for l in lines if l.y1 < 0.15 * page_h]
+    mast = next((l for l in top if paper_name and _overlap(l.text, paper_name) >= 0.6), None) \
+        or (max(top, key=lambda l: l.h) if top else None)
+    floor_y = mast.y1 if mast else 0
+    cands = sorted((l for l in lines if l.y0 > floor_y and l.h >= 1.6 * hb and l is not mast),
+                   key=lambda l: (l.y0, l.x0))
+    groups: list[list[Line]] = []
+    for l in cands:
+        for g in groups:
+            last = g[-1]
+            if (abs(l.h - last.h) <= 0.25 * last.h and 0 <= l.y0 - last.y1 < 1.0 * last.h
+                    and l.x0 < last.x1 and l.x1 > last.x0):
+                g.append(l); break
+        else:
+            groups.append([l])
+    out: list[tuple[float, float, str]] = []
+    for g in groups:
+        t = _clean(_join([l.text for l in g]))
+        words = WORD_RE.findall(t)
+        conf = statistics.mean(w.conf for l in g for w in l.words)
+        if not 3 <= len(words) <= 22 or conf < min_conf or _upper_ratio(t) > 0.8:
+            continue
+        if splash and _overlap(t, splash) >= 0.5:
+            continue
+        if paper_name and _overlap(t, paper_name) >= 0.6:
+            continue
+        try:
+            if _dict_ratio([w.lower() for w in words]) < min_dict_ratio:
+                continue
+        except Exception:
+            continue                                   # no dictionary: fail closed
+        out.append((-statistics.median(l.h for l in g), g[0].y0, t))
+    return [t for _, _, t in sorted(out)][:limit]

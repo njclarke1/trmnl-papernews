@@ -35,6 +35,11 @@ def homepage_links(html: str, base_url: str, pattern: str) -> list[tuple[str, st
     return out
 
 
+def bigger_thumb(url: str) -> str:
+    """Feed thumbnails are small (FT: width=580); ask the image service for 1200 px."""
+    return re.sub(r"([?&]width=)\d+", r"\g<1>1200", url) if "images.ft.com" in url else url
+
+
 def rss_items(xml: str) -> list[Story]:
     soup = BeautifulSoup(xml, "xml")
     out = []
@@ -43,7 +48,7 @@ def rss_items(xml: str) -> list[Story]:
         out.append(Story(headline=text.clean(it.title.text if it.title else ""),
                          standfirst=text.clean(it.description.text if it.description else ""),
                          url=text.clean(it.link.text if it.link else ""),
-                         image_url=(thumb.get("url") if thumb is not None and thumb.get("url") else "")))
+                         image_url=bigger_thumb(thumb.get("url")) if thumb is not None and thumb.get("url") else ""))
     return [s for s in out if s.headline and s.url]
 
 
@@ -70,7 +75,9 @@ class WebAdapter:
                 continue
         by_url = {s.url.split("?")[0].rstrip("/"): s for s in rss}
         try:
-            links = homepage_links(self.http.get(self.p.home).text, self.p.home, self.p.article_re)
+            r = self.http.get(self.p.home)
+            base = getattr(r, "url", "") or self.p.home        # after redirects (spectator.co.uk → .com)
+            links = homepage_links(r.text, base if base.startswith("http") else self.p.home, self.p.article_re)
         except SourceUnavailable:
             links = []
         if len(links) >= MIN_LINKS:
@@ -95,7 +102,10 @@ class WebAdapter:
             lead.url = lead.url or hint.url
             kind = "print_front"
         else:
-            lead = _merge(read_article(self.http, cands[0].url, max_age_h=0), cands[0]) if cands[0].url else cands[0]
+            try:
+                lead = _merge(read_article(self.http, cands[0].url, max_age_h=0), cands[0]) if cands[0].url else cands[0]
+            except SourceUnavailable:          # article pages blocked (FT): headline and standfirst from the feed
+                lead = cands[0]
             cands = cands[1:]
         if lead.live and lead.body_chars < 1500:
             lead.paragraphs = []                          # live blogs: summary layout, not a wall of updates

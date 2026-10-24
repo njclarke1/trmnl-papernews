@@ -4,12 +4,12 @@
 
 A newspaper front page for a jailbroken Kindle Paperwhite (11th gen, 1236×1648, 16 greys) running TRMNL through KOReader, served by a self-hosted LaraPaper.
 
-Ten papers rotate, one every 3 minutes by default (a full cycle every 30 minutes), balanced around the centre and interleaved so neighbours differ in leaning:
+Nine papers rotate, one every 3 minutes by default (a full cycle every 27 minutes), three from each part of the spectrum, interleaved left, centre, right:
 - left of centre: **The Guardian**, **The New World**, **The New York Times**
-- centre: **BBC News**, **Financial Times**, **i**, **The Economist**
+- centre: **BBC News**, **Financial Times**, **i**
 - right of centre: **The Times**, **The Daily Telegraph**, **The Spectator**
 
-The Independent is supported but off by default. Each is shown as that paper's own front: its lead story and its other top stories, under its own nameplate. The weeklies (The New World, The Economist, The Spectator) use their **daily web stories**, styled as their own paper.
+The Independent and The Economist are defined but off by default (the Economist blocks its homepage and articles, and its feed is unranked with no photos). Each paper is shown as its own front: its lead story and its other top stories, under its own nameplate. The weeklies (The New World, The Spectator) use their **daily web stories**.
 
 Two **locked editions** a day: **morning (06:00)** and **evening (16:00)**. Nothing changes between locks except the weather. Overnight, the evening edition stays up until the morning one.
 
@@ -20,13 +20,14 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Paper | Order (the "front") | Body text |
 |---|---|---|
 | Guardian | Content API editors' picks. **Morning:** the API's print metadata, i.e. page 1 of today's main book | Content API |
-| BBC, i, Telegraph, New World, Spectator (and Independent if enabled) | Homepage order, found by article URL pattern; RSS order as fallback | The article page a normal visitor gets (JSON-LD `articleBody`, then trafilatura) |
-| FT, The Times | Homepage headlines | **Morning edition:** OCR of the published printed front page (opening of the splash, up to "Continued on page N"). Otherwise headline and standfirst only |
+| BBC, i, New World, Spectator (and Independent if enabled) | Homepage order, found by article URL pattern; RSS order as fallback | The article page a normal visitor gets (JSON-LD `articleBody`, then trafilatura), unless the publisher marks it paid |
+| FT | RSS (`ft.com/rss/home/uk`; the homepage and articles return 403), photos from the feed at 1200 px | **Morning:** OCR of the printed front (frontpages.com, else tomorrowspapers.co.uk). Otherwise headline and standfirst |
+| The Times, The Telegraph | **Print-only.** Both block automated visitors, so the morning printed front (tomorrowspapers.co.uk, identified by OCR of the masthead) is read by OCR: the splash and the other front-page headlines. Held all day; not published on Sundays | The splash's opening, by OCR. If the OCR fails, the round-ups' account of the splash |
 | The New York Times | Top Stories API (editors' home-page order; free key) | **Morning edition:** OCR of the NYT's own printed front-page PDF (up to "Continued on Page A8"), accepted only if it matches a story the Article Search API lists on page A1 (the top stories if that call fails); the rest of A1 fills the rail. Otherwise headline and abstract only |
-| The Economist | Homepage headlines | Headline and rubric only (paywalled); no print OCR (weekly) |
 
 - **Morning edition:** two independent round-ups name each paper's **printed splash**: PA's "What the papers say" and BBC News's nightly newspaper review. The splash is matched to that paper's web article (`print_front`, labelled "Today's front page"). If both round-ups name a splash and they disagree, neither is used for that paper. The Guardian and the NYT also have the publisher's own print metadata (page 1 / A1).
-- **The publisher's own free flag rules:** if an article is marked paid (`isAccessibleForFree: false`, or a gated `hasPart`), no body text is shown, whatever the extractor found. There is no paywall circumvention of any kind.
+- **The publisher's own paid marking rules:** if an article is marked paid (`isAccessibleForFree: false` on any JSON-LD node, a gated `hasPart`, or the publisher's own subscriber-only marker such as the i's `is-subscriber-only`), no body text is shown, whatever the extractor found. Unmarked articles are shown in full. Bot walls and paywalls are never circumvented.
+- **Round-ups:** BBC's "The Papers" topic page (the newest review published 18:00–10:00 around the edition) and PA's round-up, which drops off the Express & Star index by morning, so both are collected overnight (21:00–06:00) and kept on disk.
 - **Layouts are chosen from what actually arrived:** `full` (body text), `summary` (photo + standfirst), `poster`, `bulletin` (list with summaries) or `briefing` (list only). A paper never shows a broken page; it steps down a layout.
 
 ## Endpoints
@@ -34,7 +35,7 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Path | |
 |---|---|
 | `/edition` | The paper for the current rotation slot, from the current locked edition |
-| `/edition/<paper>` | A specific paper: `guardian bbc ft times i telegraph newworld economist spectator indy` |
+| `/edition/<paper>` | A specific paper: `guardian bbc times nyt ft telegraph newworld i spectator` (+ `indy`, `economist` defined but off) |
 | `/demo/<state>.json` | Fixed demo states: one per paper, plus `ft-print`, `long-headline`, `no-image`, `cached` |
 | `/healthz` | Build status per paper for the current edition; also runs a build tick |
 | `/static/fonts/*`, `/img/*`, `/qr/*` | Fonts, processed photos and QR codes for the template |
@@ -46,7 +47,7 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | `GUARDIAN_API_KEY` | — | Free Developer key from open-platform.theguardian.com (non-commercial) |
 | `NYT_API_KEY` | — | Free key from developer.nytimes.com (enable Top Stories and Article Search); well under 100 calls a day, paced at 12.5 s (the limit is 5 a minute) |
 | `PUBLIC_BASE_URL` | `http://192.168.68.111:3461` | What the template uses to load fonts and images |
-| `ROTATION` | `guardian,bbc,times,nyt,ft,telegraph,newworld,economist,spectator,i` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
+| `ROTATION` | `guardian,bbc,times,nyt,ft,telegraph,newworld,i,spectator` | Equal weights; list a paper twice to weight it; `indy` is available but off by default |
 | `SLOT_MINUTES` | `3` | Minutes per paper (2–5 intended); set the LaraPaper device/playlist refresh to the same |
 | `ROTATION_MODE` | `poll` | `poll`: each device fetch shows the next paper (fetches less than ⅔ of a slot apart repeat it, so previews don't skip papers). `clock`: derived from the wall clock (stateless, but drifts against the device timer) |
 | `AM_LOCK` / `PM_LOCK` | `06:00` / `16:00` | Europe/London wall-clock time |
@@ -74,7 +75,7 @@ To check a state on the panel without waiting for real news, point a second plug
 
 ```bash
 pip install -r requirements-dev.txt && playwright install chromium   # plus: apt install tesseract-ocr
-pytest -q                                   # 114 tests (~5 min); OCR tests skip without tesseract
+pytest -q                                   # 139 tests (~5 min); OCR tests skip without tesseract
 python tools/render_harness.py              # every demo state → out/harness/*.png (16 greys) + report.json
 python tools/make_synthetic_fronts.py       # regenerate OCR test fronts
 ```

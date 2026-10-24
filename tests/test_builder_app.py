@@ -259,7 +259,7 @@ def ft_routes(front_image: bytes):
     return {
         "https://www.expressandstar.com/uk-news/what-the-papers-say-october-21": PA,
         "https://www.expressandstar.com/uk-news/": '<a href="/uk-news/what-the-papers-say-october-21-123">x</a>',
-        "https://www.frontpages.com/financial-times": '<meta property="og:image" content="https://www.frontpages.com/g/2026/10/21/ft.jpg">',
+        "https://www.frontpages.com/financial-times": '<meta property="og:image" content="https://www.frontpages.com/g/2026/10/20/financial-times-234226bib.webp.jpg">',
         "https://www.frontpages.com/g/": Resp("img", content=front_image),
         "https://www.ft.com/rss": "<rss><channel></channel></rss>",
         "https://www.ft.com/content/00000001": paid("Riots reignite French debt rout as Macron struggles to restore order"),

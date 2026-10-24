@@ -11,13 +11,13 @@ import logging
 import pathlib
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from . import clock, config, images, layout, store
-from .model import Edition
+from .model import Edition, Story
 from .papers import PAPERS
 from .sources import bbc_papers, demo, papers_review, printfront
-from .sources.base import Http, ShapeError, SourceUnavailable
+from .sources.base import Http, NotPublished, ShapeError, SourceUnavailable
 from .sources.guardian import GuardianAdapter
 from .sources.nyt import NytAdapter
 from .sources.web import WebAdapter
@@ -30,8 +30,8 @@ class Builder:
     def __init__(self, http: Http | None = None):
         self.http = http or Http()
         self._lock = threading.Lock()
-        self._reviews: dict[tuple, dict] = {}       # (slot, source) → entries; successes only
-        self._review_failed: dict[tuple, float] = {}  # (slot, source) → when it last failed
+        self._reviews: dict[tuple, dict] = {}       # (day, source) → entries; successes only
+        self._review_failed: dict[tuple, float] = {}  # (day, source) → when it last failed
         self._rot_lock = threading.Lock()
         self._rot_pos: int | None = None            # index into config.ROTATION (poll mode)
         self._rot_at = 0.0
@@ -39,27 +39,42 @@ class Builder:
     # ------------------------------------------------------------------ one paper
     REVIEW_SOURCES = {"pa": papers_review.fetch, "bbc": bbc_papers.fetch}
 
-    def _review_source(self, slot: clock.Slot, name: str) -> dict:
-        key = (slot.id, name)
+    def _review_source(self, day, name: str, backoff_s: int = 240) -> dict:
+        """One round-up for the morning of `day`, persisted once found (PA's drops off its index by
+        morning, so it is fetched the night before — see prefetch_reviews)."""
+        key = (day.isoformat(), name)
         if key in self._reviews:
             return self._reviews[key]
-        if time.time() - self._review_failed.get(key, 0) < 240:
-            return {}                         # failed this tick: don't refetch for every paper
+        hit = store.cache_get("review", f"{name}-{day.isoformat()}")
+        if hit:
+            self._reviews[key] = {k: papers_review.ReviewEntry(**v) for k, v in hit.items()}
+            return self._reviews[key]
+        if time.time() - self._review_failed.get(key, 0) < backoff_s:
+            return {}                         # failed recently: don't refetch for every paper
         try:
-            got = self.REVIEW_SOURCES[name](self.http, slot.day.isoformat())
+            got = self.REVIEW_SOURCES[name](self.http, day.isoformat())
         except SourceUnavailable as e:
             log.warning("papers review (%s) unavailable: %s", name, e)
             got = {}
         if got:
             self._reviews[key] = got
+            store.cache_put("review", f"{name}-{day.isoformat()}", {k: e.__dict__ for k, e in got.items()})
         else:
             self._review_failed[key] = time.time()    # not cached: a later retry looks again
         return got
 
+    def prefetch_reviews(self, at: datetime) -> None:
+        """21:00–05:59: collect tomorrow morning's round-ups while they are on their index pages."""
+        if config.DEMO_MODE or not (at.hour >= 21 or at.hour < 6):
+            return
+        day = (at + timedelta(days=1)).date() if at.hour >= 21 else at.date()
+        for name in self.REVIEW_SOURCES:
+            self._review_source(day, name, backoff_s=900)
+
     def _review(self, slot: clock.Slot) -> dict:
         if slot.kind != "am" or config.DEMO_MODE:
             return {}
-        entries, conflict = papers_review.combine(self._review_source(slot, "pa"), self._review_source(slot, "bbc"))
+        entries, conflict = papers_review.combine(self._review_source(slot.day, "pa"), self._review_source(slot.day, "bbc"))
         if conflict:
             log.warning("round-ups disagree on the splash for %s: not used", ", ".join(conflict))
         return entries
@@ -79,7 +94,9 @@ class Builder:
             ed = demo.edition(key)
         else:
             entry = self._review(slot).get(key)
-            if paper.source == "guardian":
+            if paper.source == "print":
+                ed = self._print_only(slot, paper, entry)
+            elif paper.source == "guardian":
                 ed = GuardianAdapter(self.http).build(slot.kind, slot.day.isoformat(), entry)
             else:
                 print_lead, cont = None, None
@@ -101,6 +118,29 @@ class Builder:
             ed.image = self.build_image(ed)
         return ed
 
+    def _print_only(self, slot: clock.Slot, paper, entry) -> Edition:
+        """Papers that block automated visitors: the morning printed front, held all day."""
+        if str(slot.day.weekday()) not in paper.print_days:
+            raise NotPublished(f"{paper.key} does not print on {slot.day:%A}s")
+        if slot.kind == "pm":                       # the evening edition is the morning's front, unchanged
+            am = store.load_edition(f"{slot.day.isoformat()}-am", paper.key)
+            if am is None:
+                raise SourceUnavailable(f"{paper.key}: no morning front to hold")
+            return am
+        f = printfront.front(self.http, paper, slot.day,
+                             expected_headline=entry.quoted if entry else "",
+                             expected_standfirst=entry.summary if entry else "")
+        rail = [Story(headline=h) for h in (f.others if f else [])]
+        if f and f.story:
+            ed = Edition(paper.key, "print_front", f.story, rail, continued_page=f.continued)
+        elif entry:                                 # OCR failed: the round-up's account of the splash
+            head = entry.quoted if len(entry.quoted) > 15 else papers_review.headline_from(entry.summary)
+            ed = Edition(paper.key, "print_front", Story(headline=head, standfirst=entry.summary, is_free=False), rail)
+        else:
+            raise SourceUnavailable(f"{paper.key}: printed front not readable yet")
+        ed.built_at = clock.now().isoformat(timespec="seconds")
+        return ed
+
     def build_image(self, ed: Edition) -> str:
         return images.cached_photo(ed.lead.image_url, self._raw, IMAGE_SIZE.get(ed.layout, "wide")) or ""
 
@@ -114,12 +154,16 @@ class Builder:
             self._lock.release()
 
     def _tick(self, at: datetime) -> dict:
+        try:
+            self.prefetch_reviews(at.astimezone(clock.LONDON))
+        except Exception:
+            log.exception("round-up prefetch failed")
         slot = clock.edition_for(at)
         state = store.load_state(slot.id)
         now_s = at.timestamp()
         for key in dict.fromkeys(config.ROTATION):          # a paper listed twice is still built once
             st = state.setdefault(key, {"status": "pending", "attempts": 0, "first": 0, "last": 0, "error": ""})
-            if st["status"] in ("ok", "carried", "missing"):
+            if st["status"] in ("ok", "carried", "missing", "not_published"):
                 continue
             # an edition already on disk is locked, even if a restart lost the state entry
             if store.load_edition(slot.id, key) is not None:
@@ -143,6 +187,8 @@ class Builder:
                 store.save_edition(slot.id, ed)
                 st.update(status="ok", error="", kind=ed.kind, layout=ed.layout)
                 log.info("%s %s: %s / %s", slot.id, key, ed.kind, ed.layout)
+            except NotPublished as e:
+                st.update(status="not_published", error=str(e))
             except (SourceUnavailable, ShapeError) as e:
                 st.update(status="failed", error=str(e), data_check=isinstance(e, ShapeError))
                 log.warning("%s %s: %s", slot.id, key, e)
@@ -194,7 +240,9 @@ class Builder:
         at = at or clock.now()
         slot = clock.edition_for(at)
         state = store.load_state(slot.id)
-        available = [k for k in dict.fromkeys(config.ROTATION) if store.load_edition(slot.id, k) or store.last_good(k)]
+        available = [k for k in dict.fromkeys(config.ROTATION)
+                     if state.get(k, {}).get("status") != "not_published"
+                     and (store.load_edition(slot.id, k) or store.last_good(k))]
         key = paper or self.next_paper(at, available)
         if key is None:
             return slot, None, True

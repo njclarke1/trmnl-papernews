@@ -23,6 +23,10 @@ class ShapeError(Exception):
     """The source changed shape → keep last good, show DATA CHECK."""
 
 
+class NotPublished(Exception):
+    """No paper today (print-only papers on Sundays) → left out of the rotation, nothing carried."""
+
+
 CHALLENGE = ("cf-chl", "just a moment...", "attention required", "px-captcha", "_incapsula_",
              "access denied", "are you a robot", "captcha-delivery")
 
@@ -49,6 +53,9 @@ class Http:
         if r.status_code >= 400:
             raise SourceUnavailable(f"{host}: HTTP {r.status_code} for {url}")
         if not binary:
+            ctype = r.headers.get("Content-Type", "") if hasattr(r, "headers") else ""
+            if "charset" not in ctype.lower() and getattr(r, "encoding", None) in (None, "ISO-8859-1"):
+                r.encoding = "utf-8"            # every source here is UTF-8; requests' default is latin-1
             head = r.text[:20000].lower()
             if any(c in head for c in CHALLENGE) and "<article" not in head:
                 raise SourceUnavailable(f"{host}: challenge page")
@@ -103,10 +110,17 @@ def _as_bool(v) -> bool | None:
     return None
 
 
-def page_free_flag(nodes: list[dict], article: dict) -> bool | None:
+PAID_MARKERS = re.compile(r'is-subscriber-only|<meta[^>]+name="article:content_tier"[^>]+content="locked"', re.I)
+
+
+def page_free_flag(nodes: list[dict], article: dict, html: str = "") -> bool | None:
     """Paid if ANY node on the page says so (publishers put the flag on WebPage, the article or a
-    hasPart element). Otherwise the article's own flag; None when nobody says (e.g. the BBC)."""
+    hasPart element), or the page carries the publisher's own subscriber-only marker (the i tags
+    paid pieces "is-subscriber-only" in its data layer, with no JSON-LD flag). Otherwise the
+    article's own flag; None when nobody says (e.g. the BBC, The New World)."""
     if any(_as_bool(o.get("isAccessibleForFree")) is False for o in nodes):
+        return False
+    if html and PAID_MARKERS.search(html):
         return False
     return _as_bool(article.get("isAccessibleForFree"))
 
@@ -137,7 +151,7 @@ def read_article(http: Http, url: str, max_age_h: float = 6) -> Story:
     soup = BeautifulSoup(html, "lxml")
     nodes = jsonld_nodes(html)
     o = next((n for n in nodes if _is_type(n)), {})
-    free = page_free_flag(nodes, o)
+    free = page_free_flag(nodes, o, html)
     body_ld = text.clean(o.get("articleBody", "")) if o.get("articleBody") else ""
     paras: list[str] = []
     try:

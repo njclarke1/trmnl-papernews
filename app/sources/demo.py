@@ -69,9 +69,9 @@ EDITIONS: dict[str, Edition] = {
          "President Macron refused to accept his interior minister’s resignation, saying continuity of command was essential, and called for new tactics on the ground.",
          "More police and gendarmes are to be deployed before the weekend, when further protests are planned in at least a dozen cities."],
         "Paris correspondent", "Europe", "https://www.thetimes.com/", "", is_free=True),
-        [S("No increase to capital gains tax in the Budget", "Economy"),
-         S("Hospitals not ready for winter, leaders warn", "Health"),
-         S("Thames Water creditors face losses under new plan", "Business")],
+        [S("No increase to capital gains tax in the Budget"),
+         S("Hospitals not ready for winter, leaders warn"),
+         S("Thames Water creditors face losses under new plan")],
         continued_page="6", note="Printed front page · text by OCR"),
     "indy": Edition("indy", "web_front", Story(
         "Curfew imposed to stop France riots as unrest grips Europe",
@@ -93,12 +93,18 @@ EDITIONS: dict[str, Edition] = {
         note="Print splash · inews.co.uk"),
     "telegraph": Edition("telegraph", "print_front", Story(
         "Labour cuts £2bn from Army front line",
-        "Mortar, repair and overwatch versions of the Boxer armoured vehicle are dropped, leaving the Army to find other ways to fill the gaps",
-        [], "Defence staff", "Defence", "https://www.telegraph.co.uk/", CAT, "Test photograph"),
-        [S("Badenoch warns the Budget could be worse than last year’s", "Politics"),
-         S("Curfews across French cities after nights of rioting", "Europe"),
-         S("Chancellor rules out a capital gains tax rise", "Economy")],
-        note="Print splash · telegraph.co.uk"),
+        "Mortar, repair and overwatch versions of the Boxer armoured vehicle are dropped",
+        ["The Army’s front line is to lose £2bn of planned equipment after ministers dropped three versions of the Boxer armoured vehicle, the Telegraph can reveal.",
+         "The mortar, repair and overwatch variants were cut in a spending review completed last month, leaving commanders to find other ways to fill the gaps in their brigades.",
+         "Senior officers warned that the decision would leave the Army without modern self-propelled mortars until the next decade, at a time when Nato allies are rearming.",
+         "The Ministry of Defence said the programme had been re-prioritised to deliver the vehicles most needed by troops, and that savings would be reinvested in drones.",
+         "Kemi Badenoch said the cut showed Labour’s promises on defence spending could not be trusted, and called for the Chancellor to set out a timetable in the Budget.",
+         "Defence sources said the decision had been taken without consulting the Army Board, and that two of the three variants had already passed their trials."],
+        "Danielle Sheridan, Defence Editor", "", "https://www.telegraph.co.uk/", "", is_free=True),
+        [S("Badenoch warns the Budget could be worse than last year’s"),
+         S("Curfews across French cities after nights of rioting"),
+         S("Chancellor rules out a capital gains tax rise")],
+        continued_page="2", note="Printed front page · text by OCR"),
     "nyt": Edition("nyt", "web_front", Story(
         "France Imposes Curfews as Riots Spread to a Dozen Cities",
         "The unrest, set off by a pension overhaul, is the most serious test yet of the government’s austerity drive and has rattled European bond markets.",
@@ -152,6 +158,10 @@ def states() -> dict[str, Edition]:
     ny.kind, ny.lead.paragraphs, ny.lead.is_free, ny.continued_page = "print_front", FRANCE_FT, True, "A8"
     ny.note = "Printed front page · text by OCR"
     out["nyt-print"] = ny
+    ru = edition("telegraph")                          # print-only, OCR failed: the round-up's account
+    ru.lead.paragraphs, ru.lead.standfirst = [], "The Daily Telegraph says Labour has cut £2bn from the Army front line, dropping three versions of the Boxer armoured vehicle."
+    ru.lead.byline, ru.continued_page, ru.lead.is_free = "", None, False
+    out["print-roundup"] = ru
     long = edition("guardian")
     long.lead.headline = ("Chancellor extends fuel duty freeze for another year as borrowing figures come in "
                           "£9bn above forecast and opposition demands answers")

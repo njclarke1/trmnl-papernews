@@ -162,8 +162,17 @@ def test_review_parser_names_and_quotes():
 def test_printfront_rejects_wrong_date(monkeypatch):
     from datetime import date
     http = FakeHttp({"https://www.frontpages.com/financial-times":
-                     '<meta property="og:image" content="https://www.frontpages.com/g/2026/10/20/financial-times-1.webp.jpg">'})
+                     '<meta property="og:image" content="https://www.frontpages.com/g/2026/10/20/financial-times-120000abc.webp.jpg">'})
     assert printfront.find_image(http, PAPERS["ft"], date(2026, 10, 21)) is None
+
+
+def test_frontpages_files_by_upload_time():
+    from datetime import date
+    d = date(2026, 10, 24)
+    assert printfront.frontpages_is_for("https://www.frontpages.com/g/2026/10/23/financial-times-234226bib.webp.jpg", d)
+    assert printfront.frontpages_is_for("https://www.frontpages.com/g/2026/10/24/financial-times-001500abc.webp.jpg", d)
+    assert not printfront.frontpages_is_for("https://www.frontpages.com/g/2026/10/23/financial-times-091500abc.webp.jpg", d)
+    assert not printfront.frontpages_is_for("https://www.frontpages.com/img/newspapers-01.jpg", d)
 
 
 def test_printfront_small_image_cached_as_failure(monkeypatch):
@@ -172,7 +181,7 @@ def test_printfront_small_image_cached_as_failure(monkeypatch):
     from PIL import Image
     buf = io.BytesIO(); Image.new("L", (600, 900), 255).save(buf, "JPEG")
     http = FakeHttp({"https://www.frontpages.com/financial-times":
-                     '<meta property="og:image" content="https://www.frontpages.com/g/2026/10/21/ft.jpg">',
+                     '<meta property="og:image" content="https://www.frontpages.com/g/2026/10/20/financial-times-231000abc.webp.jpg">',
                      "https://www.frontpages.com/g/": Resp("x", content=buf.getvalue())})
     assert printfront.splash(http, PAPERS["ft"], date(2026, 10, 21)) is None
     n = len(http.calls)

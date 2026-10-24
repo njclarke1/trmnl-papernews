@@ -12,14 +12,15 @@ class Paper:
     name: str                      # typeset nameplate stand-in (real wordmark replaces it when cached)
     np: str                        # nameplate style class
     short: str                     # "the FT"
-    source: str                    # adapter: guardian | web
+    source: str                    # adapter: guardian | web | nyt | print (printed front only)
     fallback_layout: str           # layout when there is no free body: summary | poster | briefing | bulletin
     home: str = ""
     article_re: str = ""
     rss: tuple = ()
     print_front: bool = False      # OCR the printed front for body text (no free web text)
     front_slug: str = ""           # frontpages.com slug
-    front_finder: str = "frontpages"   # frontpages | tomorrowspapers
+    front_finder: str = "frontpages"   # frontpages | tomorrowspapers | nytpdf
+    print_days: str = "0123456"    # weekdays (Mon=0) the paper prints; print-only papers skip the rest
     review_names: tuple = ()       # how PA's "What the papers say" names the paper
     note_web: str = ""
     note_print: str = ""
@@ -39,12 +40,14 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           print_front=True, front_slug="financial-times",
           review_names=("Financial Times", "The FT", "FT"),
           note_web="ft.com · headlines (articles paywalled)", note_print="Printed front page · text by OCR"),
-    Paper("times", "THE TIMES", "tm", "the Times", "web", "summary",
-          home="https://www.thetimes.com", article_re=r"^/.*/article/[a-z0-9-]+$",
-          rss=("https://openrss.org/www.thetimes.com",),
-          print_front=True, front_slug="the-times", front_finder="tomorrowspapers",
+    # The Times and The Telegraph block automated visitors (24 Oct probe: "Verifying device", and a
+    # security page with HTTP 402), so they are print-only: the morning printed front, read by OCR,
+    # held all day. Not published on Sundays (the Sunday titles are different papers).
+    Paper("times", "THE TIMES", "tm", "the Times", "print", "briefing",
+          home="https://www.thetimes.com",
+          print_front=True, front_finder="tomorrowspapers", print_days="012345",
           review_names=("The Times", "Times"),
-          note_web="thetimes.com · headlines (articles paywalled)", note_print="Printed front page · text by OCR"),
+          note_web="Printed front page · text by OCR", note_print="Printed front page · text by OCR"),
     Paper("indy", "THE INDEPENDENT", "in", "the Independent", "web", "poster",
           home="https://www.independent.co.uk",
           article_re=r"^/(news|politics|world|business|climate-change|tech|life-style|voices|sport)/.+-[ab]?\d{6,}\.html$",
@@ -56,11 +59,11 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           rss=("https://inews.co.uk/feed",),
           review_names=("The i", "i paper", "i"),
           note_web="inews.co.uk · homepage order", note_print="Print splash · inews.co.uk"),
-    Paper("telegraph", "The Daily Telegraph", "tg", "the Telegraph", "web", "summary",
-          home="https://www.telegraph.co.uk", article_re=r"^/[a-z-]+(/[a-z-]+)*/\d{4}/\d{2}/\d{2}/[a-z0-9-]+/?$",
-          rss=("https://www.telegraph.co.uk/rss.xml",),
+    Paper("telegraph", "The Daily Telegraph", "tg", "the Telegraph", "print", "briefing",
+          home="https://www.telegraph.co.uk",
+          print_front=True, front_finder="tomorrowspapers", print_days="012345",
           review_names=("The Daily Telegraph", "The Telegraph", "Telegraph"),
-          note_web="telegraph.co.uk · homepage order", note_print="Print splash · telegraph.co.uk"),
+          note_web="Printed front page · text by OCR", note_print="Printed front page · text by OCR"),
     # The New York Times (added 21 Oct 2026): editors' order from the Top Stories API (free key);
     # morning body text by OCR of the NYT's own printed front-page PDF (high resolution).
     Paper("nyt", "The New York Times", "ny", "the NYT", "nyt", "summary",
@@ -77,12 +80,13 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           rss=("https://www.economist.com/latest/rss.xml", "https://www.economist.com/the-world-this-week/rss.xml"),
           note_web="economist.com · headlines (articles paywalled)"),
     Paper("spectator", "THE SPECTATOR", "sp", "the Spectator", "web", "summary",
-          home="https://www.spectator.co.uk", article_re=r"^/article/[a-z0-9-]+/?$",
-          rss=("https://www.spectator.co.uk/feed/",),
-          note_web="spectator.co.uk · homepage order"),
+          home="https://spectator.com", article_re=r"^/article/[a-z0-9-]+/?$",
+          rss=("https://spectator.com/feed/", "https://www.spectator.co.uk/feed/"),
+          note_web="spectator.com · homepage order"),
 ]}
 
-# Balance (21 Oct 2026): left of centre — Guardian, New World, NYT; centre — BBC, FT, i, Economist;
-# right of centre — Times, Telegraph, Spectator. Interleaved so consecutive papers differ in leaning.
-# The Independent stays defined but out of the default rotation.
-DEFAULT_ROTATION = "guardian,bbc,times,nyt,ft,telegraph,newworld,economist,spectator,i"
+# Balance (24 Oct 2026, after the first probe): three each — left of centre Guardian, New World, NYT;
+# centre BBC, FT, i; right of centre Times, Telegraph, Spectator. Interleaved L, C, R.
+# The Independent and The Economist stay defined but out of the default rotation (the Economist blocks
+# its homepage and articles; its RSS is unranked and has no photos).
+DEFAULT_ROTATION = "guardian,bbc,times,nyt,ft,telegraph,newworld,i,spectator"
