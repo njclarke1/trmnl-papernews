@@ -12,18 +12,27 @@
 
 ## Decision: portrait — needs a custom device model
 
-**First test (24 Oct):** the test pattern came out magnified about 2.06×, showing only the top-left 800 × 600 or so of the page, on a landscape canvas.
-- Cause: when a device has a model assigned, LaraPaper renders with the **model's** width, height, rotation and scale. The device's own width, height and rotate fields are only a fallback (`ImageGenerationService::getImageSettings`).
-- The PW Signature 11th Gen preset is 1648 × 1236, rotation 90, `scale_factor` 2.06. That suits TRMNL's 800-px layouts; papernews is a native 1236 × 1648 page.
+**First test (24 Oct):** the test pattern came out magnified about 2.06×, showing only the top-left 800 × 600 or so of the page.
 
-**Fix:** go to Device Models (`/device-models`), duplicate "Amazon Kindle PW Signature 11th Gen" (the copy is `source: manual`, so model syncs leave it alone), and set:
+The resolution is not the problem: the preset's 1648 × 1236 is correct. The problem is the **CSS canvas** the page is laid out on. TRMNL's own definition of this preset (`epaper-pipeline-php` `models.json`) is:
+- css class `screen--amazon_kindle_paperwhite_signature_11th_gen`
+- css variables `--screen-w: 800px`, `--screen-h: 600px`, `--pixel-ratio: 2.06`
+- rotation 90 (laid out landscape, then rotated onto the portrait panel)
+
+So the framework lays recipes out on an 800 × 600 CSS screen and scales it 2.06× to fill the panel. That suits TRMNL's 800-px layouts. papernews is a native 1236 × 1648 portrait page (1 CSS px = 1 panel pixel), so only its top-left 800 × 600 shows, magnified.
+
+**Fix: a portrait model with no TRMNL CSS class and no scaling variables.**
+1. Go to Device Models (`/device-models`) and duplicate "Amazon Kindle PW Signature 11th Gen". Duplicate rather than edit: model syncs overwrite `source: api` presets, and the copy is `manual`.
+2. Edit the copy. **Duplicate copies the CSS class and variables, so they must be cleared, not left as they are:**
 
 | Field | Value |
 |---|---|
-| label | Kindle PW11 portrait (native) |
+| name | `kindle_pw11_portrait` (anything with no TRMNL CSS class of the same name) |
 | width × height | 1236 × 1648 |
 | scale factor | 1 |
 | rotation | 0 |
+| **CSS name** | **empty** |
+| **CSS variables** | **delete all** (LaraPaper then fills `--screen-w: 1236px`, `--screen-h: 1648px` itself) |
 | colours / bit depth / type | 16 / 4 / PNG (unchanged) |
 
 Then assign device 3 to the new model and regenerate (`php artisan trmnl:screen:generate 3`). Check that the frame touches all four edges, the circle is round, the line boxes are crisp and all 16 greys are distinct. Mount the Kindle upright, with USB-C at the bottom.
