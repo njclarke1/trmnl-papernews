@@ -1,4 +1,4 @@
-# Phase 0 — the Kindle (results, 23 Oct 2026)
+# Phase 0 — the Kindle (passed 24 Oct 2026)
 
 ## Device as found (Nick's handover)
 
@@ -32,6 +32,8 @@ So the framework lays recipes out on an 800 × 600 CSS screen and scales it 2.06
 **Test pattern after the fix (24 Oct): geometry passes.** The frame reaches all four edges, the circle is round and the 1-px line boxes are crisp. **The grey ramp fails:** only 8 levels show (00, 11, 33, 55, 99, cc, ee, ff); 22/44, 66/77, 88/aa and bb/dd merge into their neighbours.
 - Cause: the `gray-16` palette has `colors: null`, so the image pipeline (`epaper-pipeline-php` `ImageStage::quantize`) runs an *adaptive* `quantizeImage(16, GRAY, dither)`. It picks the 16 greys that best fit each image's histogram, with anti-aliased text taking most of the slots, rather than the panel's 16 fixed levels.
 - Fix: in **Device Palettes** (`/device-palettes`), create `kindle-gray16-fixed` with grays 16, framework class `screen--4bit` and colours `#000000 #111111 #222222 #333333 #444444 #555555 #666666 #777777 #888888 #999999 #aaaaaa #bbbbbb #cccccc #dddddd #eeeeee #ffffff`. Set it as the palette on the portrait model. With an explicit colour list, the pipeline remaps to exactly those levels (`applyColormap`) before quantising.
+
+**Phase 0 passed (24 Oct, 07:29)** with the fixed palette on the portrait model: frame, corners, round circle, crisp 1-px lines and 16 distinct grey steps.
 
 Device refresh, or the playlist's refresh time: 180 s, the same as `SLOT_MINUTES=3`.
 
