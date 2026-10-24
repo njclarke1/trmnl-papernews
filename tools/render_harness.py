@@ -49,8 +49,9 @@ def main(states):
                     "<body class='environment trmnl'><div class='screen screen--amazon_kindle_paperwhite_signature_11th_gen "
                     f"screen--4bit screen--scale-xlarge'>{tpl.render(**data)}</div></body></html>")
             (OUT / f"{st}.html").write_text(html)
-            page.goto(f"http://127.0.0.1:{PORT}/healthz")          # same origin for fonts/images
-            page.set_content(html, wait_until="networkidle")
+            # LaraPaper (Browsershot) writes the markup to a temporary file and opens it, so the page's
+            # origin is file:// (null): fonts from the sidecar are cross-origin and need CORS
+            page.goto((OUT / f"{st}.html").resolve().as_uri(), wait_until="networkidle")
             page.wait_for_selector("body[data-ready]", state="attached", timeout=15000)
             raw = OUT / f"{st}-raw.png"
             page.screenshot(path=str(raw), clip={"x": 0, "y": 0, "width": 1236, "height": 1648})

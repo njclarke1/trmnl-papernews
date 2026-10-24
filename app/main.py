@@ -66,7 +66,17 @@ def create_app(builder: Builder | None = None, background: bool = True) -> Flask
 
     @app.get("/static/fonts/<path:name>")
     def fonts(name):
-        return send_from_directory(STATIC / "fonts", name, max_age=86400 * 30)
+        # LaraPaper renders the markup from its own origin (setContent), so web fonts are cross-origin
+        # and the browser refuses them without CORS (images don't need it). First live render,
+        # 24 Oct 2026: every face fell back to Noto.
+        r = send_from_directory(STATIC / "fonts", name, max_age=86400 * 30)
+        r.headers["Access-Control-Allow-Origin"] = "*"
+        return r
+
+    @app.after_request
+    def cors(resp):
+        resp.headers.setdefault("Access-Control-Allow-Origin", "*")   # read-only, LAN-only public data
+        return resp
 
     @app.get("/img/<name>")
     def img(name):

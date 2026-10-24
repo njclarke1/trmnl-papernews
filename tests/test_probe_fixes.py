@@ -230,3 +230,10 @@ def test_rail_is_only_called_the_front_when_it_is():
     assert "stories" in payload.build(ed, slot)["rail_head"]
     ed.rail_front = -1
     assert "front" in payload.build(ed, slot)["rail_head"]
+
+
+def test_fonts_are_served_with_cors(tmp_path, monkeypatch):
+    from app.main import create_app
+    c = create_app(background=False).test_client()
+    r = c.get("/static/fonts/PlayfairDisplay-Variable.ttf")
+    assert r.status_code == 200 and r.headers["Access-Control-Allow-Origin"] == "*"
