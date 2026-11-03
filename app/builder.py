@@ -131,9 +131,8 @@ class Builder:
             raise NotPublished(f"{paper.key} does not print on {slot.day:%A}s")
         if slot.kind == "pm":                       # the evening edition is the morning's front, unchanged
             am = store.load_edition(f"{slot.day.isoformat()}-am", paper.key)
-            if am is None:
-                raise SourceUnavailable(f"{paper.key}: no morning front to hold")
-            return am
+            if am is not None:
+                return am                           # no morning front: today's paper is still read below
         f = printfront.front(self.http, paper, slot.day,
                              expected_headline=entry.quoted if entry else "",
                              expected_standfirst=entry.summary if entry else "")
@@ -189,11 +188,16 @@ class Builder:
             # the retry window runs from the lock, or from the first attempt if we started late
             start = max(slot.lock_at.timestamp(), st.get("first") or now_s)
             window_end = start + config.RETRY_WINDOW_MIN * 60
+            if PAPERS[key].source == "print":       # fronts are posted through the morning: keep looking all slot
+                window_end = float("inf")
             if st["attempts"] and now_s > window_end:
                 self._carry(slot, key, st)
                 store.save_state(slot.id, state)
                 continue
-            if st["attempts"] and now_s - st["last"] < config.RETRY_EVERY_MIN * 60:
+            every = config.RETRY_EVERY_MIN * 60
+            if PAPERS[key].source == "print" and st["attempts"] >= 12:
+                every = max(every, 20 * 60)             # after the first hour, as often as tomorrowspapers is re-read
+            if st["attempts"] and now_s - st["last"] < every:
                 continue
             st["attempts"] += 1
             st["first"] = st.get("first") or now_s

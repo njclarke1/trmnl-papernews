@@ -346,3 +346,28 @@ def test_feeds_are_fetched_conditionally():
     second = h.feed("https://example.org/rss.xml")
     assert first == second and "<title>A</title>" in second            # the 304 served the kept copy
     assert seen[0]["Accept"].startswith("application/rss+xml") and seen[1]["If-None-Match"] == '"v1"'
+
+
+def test_print_only_paper_keeps_looking_all_morning_and_into_the_evening(monkeypatch):
+    """3 Nov: the Telegraph gave up an hour after 06:00 (retry window) and was never looked for again."""
+    monkeypatch.setattr(config, "ROTATION", ["telegraph"])
+    calls = []
+    def front(*a, **k):
+        calls.append(1)
+        return None if len(calls) < 15 else _front(Story("Late front", "Deck", ["Para " * 60] * 4, is_free=True), ["Other"])
+    monkeypatch.setattr(printfront, "front", front)
+    b = Builder(FakeHttp({}))
+    monkeypatch.setattr(b, "_review", lambda slot: {})
+    monkeypatch.setattr(b, "prefetch_reviews", lambda at: None)
+    t = at("2026-11-03 06:01")
+    from datetime import timedelta
+    for _ in range(12 * 9):                                   # 06:01 → 15:00, ticking every 5 min
+        b.tick(t); t += timedelta(minutes=5)
+    assert store.load_state("2026-11-03-am")["telegraph"]["status"] == "ok"
+    assert 15 <= len(calls) < 40                              # not every 5 min all day
+    calls.clear()
+    monkeypatch.setattr(printfront, "front", lambda *a, **k: _front(Story("Evening read", "D", ["P " * 60] * 4, is_free=True), ["x"]))
+    store.save_state("2026-11-03-am", {})
+    import shutil; shutil.rmtree(store._root() / "editions" / "2026-11-03-am")
+    ed = b.build_one(clock.edition_for(at("2026-11-03 16:01")), "telegraph")   # no morning copy: read it now
+    assert ed.lead.headline == "Evening read"
