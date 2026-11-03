@@ -255,6 +255,12 @@ class Builder:
                     return k
         return None
 
+    @staticmethod
+    def _stand_in(key: str):
+        """The copy shown while a paper's edition is being built. A print-only paper has none: its last
+        good copy is an earlier day's front (or this morning's thin round-up page, 3 Nov), not today's."""
+        return None if key in PAPERS and PAPERS[key].source == "print" else store.last_good(key)
+
     def current(self, at: datetime | None = None, paper: str | None = None):
         """(slot, edition, preparing) for the paper to show now; falls back to the last good copy."""
         at = at or clock.now()
@@ -262,14 +268,14 @@ class Builder:
         state = store.load_state(slot.id)
         available = [k for k in dict.fromkeys(config.ROTATION)
                      if state.get(k, {}).get("status") != "not_published"
-                     and (store.load_edition(slot.id, k) or store.last_good(k))]
+                     and (store.load_edition(slot.id, k) or self._stand_in(k))]
         key = paper or self.next_paper(at, available)
         if key is None:
             return slot, None, True
         ed = store.load_edition(slot.id, key)
         preparing = False
         if ed is None:
-            ed = store.last_good(key)
+            ed = self._stand_in(key)
             preparing = state.get(key, {}).get("status") in (None, "pending", "failed")
         return slot, ed, preparing
 

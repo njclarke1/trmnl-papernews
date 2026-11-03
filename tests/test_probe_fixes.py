@@ -191,6 +191,20 @@ def test_round_up_sentence_alone_is_not_a_page(monkeypatch):
     assert papers_review.headline_from(entry.summary) == 'The home secretary has "watered down" her migration policy'
 
 
+def test_print_only_paper_is_not_shown_from_last_good_while_failing(monkeypatch):
+    """3 Nov 11:12: the Telegraph kept failing (correctly), and the rotation showed its last good copy —
+    this morning's thin round-up page — marked UPDATING."""
+    monkeypatch.setattr(config, "ROTATION", ["telegraph", "bbc"])
+    store.save_edition("2026-11-03-am", Edition("telegraph", "print_front", Story("Thin page"), []))
+    store.save_edition("2026-11-03-am", Edition("bbc", "web_front", Story("BBC lead"), []))
+    import shutil; shutil.rmtree(store._root() / "editions" / "2026-11-03-am")       # rebuilding: only last good
+    store.save_edition("2026-11-03-am", Edition("bbc", "web_front", Story("BBC lead"), []))
+    b = Builder(FakeHttp({}))
+    for n in range(4):
+        _, ed, _ = b.current(at(f"2026-11-03 11:{12 + 3 * n:02d}"))
+        assert ed is not None and ed.paper == "bbc"
+
+
 def test_print_only_paper_is_never_carried_from_yesterday(monkeypatch):
     b = Builder(FakeHttp({}))
     store.save_edition("2026-11-02-am", Edition("telegraph", "print_front", Story("Yesterday's splash"), []))
