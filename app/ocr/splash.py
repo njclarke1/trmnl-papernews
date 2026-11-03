@@ -333,7 +333,8 @@ def tidy(text: str) -> str:
     def split_a(m):                                                          # "aclose" → "a close"
         w = m.group(0)
         return f"a {w[1:]}" if not _known(w.lower()) and _known(w[1:].lower()) else w
-    return re.sub(r"\ba[a-z]{3,}\b", split_a, t)
+    t = re.sub(r"\ba[a-z]{3,}\b", split_a, t)
+    return re.sub(r"(?<=[a-z,] )(in|on|of|to|at|as|is|was)a(?= [a-z])", r"\1 a", t)     # "ina decision" → "in a"
 
 
 def name_case(s: str) -> str:

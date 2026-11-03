@@ -132,10 +132,10 @@ def test_print_only_paper_morning_then_held_all_day(monkeypatch):
     monkeypatch.setattr(printfront, "front", lambda *a, **k: _front(splash, ["Chancellor rules out tax rise", "Spy chief warns"]))
     b = Builder(FakeHttp({}))
     monkeypatch.setattr(b, "_review", lambda slot: {})
-    am = b.build_one(clock.edition_for(at("2026-10-24 06:01")), "times")
+    am = b.build_one(clock.edition_for(at("2026-10-24 06:01")), "telegraph")
     assert am.kind == "print_front" and am.layout == "full" and [s.headline for s in am.rail][0].startswith("Chancellor")
     store.save_edition("2026-10-24-am", am)
-    pm = b.build_one(clock.edition_for(at("2026-10-24 16:01")), "times")
+    pm = b.build_one(clock.edition_for(at("2026-10-24 16:01")), "telegraph")
     assert pm.lead.headline == am.lead.headline and pm.built_at == am.built_at
 
 
@@ -149,11 +149,11 @@ def test_print_only_falls_back_to_the_round_up(monkeypatch):
 
 
 def test_print_only_papers_skip_sundays(monkeypatch):
-    monkeypatch.setattr(config, "ROTATION", ["times", "bbc"])
+    monkeypatch.setattr(config, "ROTATION", ["times", "telegraph", "bbc"])
     b = Builder(FakeHttp({}))
     monkeypatch.setattr(b, "build_one", Builder.build_one.__get__(b))
     st = b.tick(at("2026-10-25 06:01"))["papers"]
-    assert st["times"]["status"] == "not_published"
+    assert st["times"]["status"] == st["telegraph"]["status"] == "not_published"
     slot, ed, _ = b.current(at("2026-10-25 06:05"), None)
     assert ed is None or ed.paper != "times"
 

@@ -28,7 +28,7 @@ class NotPublished(Exception):
 
 
 CHALLENGE = ("cf-chl", "just a moment...", "attention required", "px-captcha", "_incapsula_",
-             "access denied", "are you a robot", "captcha-delivery")
+             "access denied", "are you a robot", "captcha-delivery", "verifying device")
 
 
 FEED_ACCEPT = "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1"
@@ -46,6 +46,8 @@ class Http:
         if wait > 0:
             time.sleep(wait)
         try:
+            if host in config.HOST_UA:
+                kw["headers"] = {**(kw.get("headers") or {}), "User-Agent": config.HOST_UA[host]}
             r = self.s.get(url, timeout=kw.pop("timeout", 20), **kw)
         except requests.RequestException as e:
             raise SourceUnavailable(f"{host}: {type(e).__name__}") from e
@@ -161,6 +163,15 @@ def _image(o: dict, soup: BeautifulSoup) -> str:
     return im or ""
 
 
+BRAND_SECTIONS = {"thetimes", "thesundaytimes", "times", "news"}
+
+
+def _section(v) -> str:
+    """articleSection, unless it is just the publication's name (the Times sets "TheTimes")."""
+    s = text.clean(_first(v) or "")
+    return "" if re.sub(r"[^a-z]", "", s.lower()) in BRAND_SECTIONS else s
+
+
 def read_article(http: Http, url: str, max_age_h: float = 6) -> Story:
     """Article metadata + body from the page a normal visitor gets. Cached by URL.
     Leads are read with max_age_h=0 (always fresh), so an article that turns paid is never
@@ -192,7 +203,7 @@ def read_article(http: Http, url: str, max_age_h: float = 6) -> Story:
     names = [text.clean(a.get("name") if isinstance(a, dict) else a or "") for a in authors]
     names = [n for n in names if n and not n.lower().startswith(("http", "the "))]
     meta_author = soup.find("meta", attrs={"name": "author"})
-    author = " and ".join(names) or text.clean(meta_author.get("content") if meta_author else "")
+    author = (", ".join(names[:-1]) + " and " + names[-1] if len(names) > 1 else "".join(names)) or text.clean(meta_author.get("content") if meta_author else "")
     og_title = soup.find("meta", property="og:title")
     og_desc = soup.find("meta", property="og:description")
     st = Story(
@@ -200,7 +211,7 @@ def read_article(http: Http, url: str, max_age_h: float = 6) -> Story:
         standfirst=text.clean(o.get("description") or (og_desc.get("content") if og_desc else "")),
         paragraphs=paras,
         byline=author,
-        section=text.clean(_first(o.get("articleSection")) or ""),
+        section=_section(o.get("articleSection")),
         url=url, image_url=_image(o, soup), is_free=free,
         live="LiveBlogPosting" in (o.get("@type") if isinstance(o.get("@type"), list) else [o.get("@type")]))
     store.cache_put("article", key, {**st.__dict__, "_at": time.time()})

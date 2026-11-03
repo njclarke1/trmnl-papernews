@@ -42,6 +42,11 @@ PIN = _env("PIN")                        # lock the display to one paper
 GUARDIAN_API_KEY = _env("GUARDIAN_API_KEY")
 NYT_API_KEY = _env("NYT_API_KEY")          # free key from developer.nytimes.com (Top Stories API)
 USER_AGENT = _env("USER_AGENT", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36")
+# Some sites refuse a browser identity but admit a plainly named reader (3 Nov probe: thetimes.com serves
+# "Verifying Device" to the browser string and its homepage to this one). Used per host, below.
+HONEST_UA = _env("HONEST_UA", "papernews/1.0 (personal e-ink news display; RSS/XML reader; "
+                              "+https://github.com/njclarke1/trmnl-papernews)")
+HOST_UA = {h: HONEST_UA for h in ("www.thetimes.com", "thetimes.com")}
 HOST_PACING_S = float(_env("HOST_PACING_S", "2"))
 HOST_PACING_OVERRIDE = {"api.nytimes.com": max(HOST_PACING_S, 12.5)} if HOST_PACING_S > 0 else {}   # NYT: 5 calls/min
 MIN_BODY_CHARS = int(_env("MIN_BODY_CHARS", "1500"))

@@ -40,14 +40,15 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           print_front=True, front_slug="financial-times",
           review_names=("Financial Times", "The FT", "FT"),
           note_web="Headlines · articles paywalled", note_print="Printed front page · text by OCR"),
-    # The Times and The Telegraph block automated visitors (24 Oct probe: "Verifying device", and a
-    # security page with HTTP 402), so they are print-only: the morning printed front, read by OCR,
-    # held all day. Not published on Sundays (the Sunday titles are different papers).
-    Paper("times", "THE TIMES", "tm", "the Times", "print", "briefing",
-          home="https://www.thetimes.com",
+    # The Times (3 Nov probe): refuses the browser identity ("Verifying Device") but serves its homepage
+    # to a plainly named reader (config.HOST_UA). Morning: printed splash by OCR; otherwise homepage order.
+    # Articles are publisher-marked paid (isAccessibleForFree false), so summaries only. Sport links are
+    # left out (spoilers). Not on Sundays: the homepage is then the Sunday Times, a different paper.
+    Paper("times", "THE TIMES", "tm", "the Times", "web", "summary",
+          home="https://www.thetimes.com", article_re=r"^/(?!sport/)[a-z0-9-]+(/[a-z0-9-]+)*/article/[a-z0-9-]+$",
           print_front=True, front_finder="tomorrowspapers", print_days="012345",
           review_names=("The Times", "Times"),
-          note_web="Printed front page · text by OCR", note_print="Printed front page · text by OCR"),
+          note_web="Homepage order · articles paywalled", note_print="Printed front page · text by OCR"),
     Paper("indy", "THE INDEPENDENT", "in", "the Independent", "web", "poster",
           home="https://www.independent.co.uk",
           article_re=r"^/(news|politics|world|business|climate-change|tech|life-style|voices|sport)/.+-[ab]?\d{6,}\.html$",
@@ -59,6 +60,8 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           rss=("https://inews.co.uk/feed",),
           review_names=("The i", "i paper", "i"),
           note_web="Homepage order"),
+    # The Telegraph refuses both identities (402) for its homepage; its feeds are stale or a syndication
+    # pool (3 Nov probe), so it stays print-only: the morning printed front, read by OCR, held all day.
     Paper("telegraph", "The Daily Telegraph", "tg", "the Telegraph", "print", "briefing",
           home="https://www.telegraph.co.uk",
           print_front=True, front_finder="tomorrowspapers", print_days="012345",
@@ -81,7 +84,7 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           note_web="Headlines · articles paywalled"),
     Paper("spectator", "THE SPECTATOR", "sp", "the Spectator", "web", "summary",
           home="https://spectator.com", article_re=r"^/article/[a-z0-9-]+/?$",
-          rss=("https://spectator.com/feed/", "https://www.spectator.co.uk/feed/"),
+          rss=("https://www.spectator.co.uk/feed/",),                       # spectator.com/feed/ is 404 (3 Nov)
           note_web="Homepage order"),
 ]}
 

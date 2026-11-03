@@ -24,16 +24,32 @@ RAIL_FETCH = 5
 def homepage_links(html: str, base_url: str, pattern: str) -> list[tuple[str, str]]:
     base = up.urlparse(base_url)
     pat = re.compile(pattern)
-    seen, out = set(), []
+    seen: dict[str, int] = {}
+    out: list[tuple[str, str]] = []
     for a in BeautifulSoup(html, "lxml").find_all("a", href=True):
         u = up.urlparse(up.urljoin(base_url, a["href"]))
         if u.netloc.removeprefix("www.") != base.netloc.removeprefix("www."):
             continue
         path = u.path if pattern.endswith("/?$") else u.path.rstrip("/")
+        label = text.clean(a.get_text(" "))
         if pat.match(path) and path not in seen:
-            seen.add(path)
-            out.append((f"{u.scheme}://{u.netloc}{u.path}", text.clean(a.get_text(" "))))
+            seen[path] = len(out)
+            out.append((f"{u.scheme}://{u.netloc}{u.path}", label))
+        elif path in seen and label and not out[seen[path]][1]:     # picture link first, headline link second
+            out[seen[path]] = (out[seen[path]][0], label)
     return out
+
+
+URL_SECTION = {"uk": "UK", "us": "US", "life-style": "Life & Style", "news-today": "News"}
+
+
+def section_from_url(url: str) -> str:
+    """The Times files articles as /<section>/<subsection>/article/<slug>: use the subsection."""
+    parts = up.urlparse(url).path.strip("/").split("/")
+    if "article" not in parts or parts.index("article") == 0:
+        return ""
+    seg = parts[parts.index("article") - 1]
+    return URL_SECTION.get(seg, seg.replace("-", " ").title())
 
 
 def bigger_thumb(url: str) -> str:
@@ -58,7 +74,33 @@ def _merge(article: Story, hint: Story) -> Story:
     for f in ("headline", "standfirst", "image_url", "section"):
         if not getattr(article, f) and getattr(hint, f):
             setattr(article, f, getattr(hint, f))
+    if not article.section:
+        article.section = section_from_url(article.url or hint.url)
     return article
+
+
+def _strip_byline(para: str, first_author: str) -> str:
+    """OCR runs the byline block into the first paragraph ("Geraldine Scott Assistant Political Editor
+    Emma Yeomans, Oliver Wright Hundreds of thousands..."). If the paragraph opens with the article's
+    first author, drop the capitalised run up to the first word that starts an ordinary sentence."""
+    if not first_author or not para.startswith(first_author):
+        return para
+    toks = para.split(" ")
+    for i in range(len(first_author.split(" ")), len(toks) - 1):
+        if toks[i][:1].isupper() and toks[i + 1][:1].islower() and not toks[i].endswith(","):
+            return " ".join(toks[i:])
+    return para
+
+
+def _print_repairs(lead: Story, hint: Story) -> Story:
+    """Fix what OCR of a printed splash typically gets wrong, using the matched web article."""
+    if hint.url and hint.headline and len(lead.headline.split()) < 4:    # caught one line of a multi-line head
+        lead.headline = hint.headline
+    if hint.byline and lead.paragraphs:
+        first = re.split(r",| and ", hint.byline)[0].strip()
+        lead.paragraphs[0] = _strip_byline(lead.paragraphs[0], first)
+        lead.byline = lead.byline or hint.byline
+    return lead
 
 
 class WebAdapter:
@@ -98,8 +140,17 @@ class WebAdapter:
                 kind = "print_front"          # the round-up identifies the splash; the paper's own headline is shown
         if print_lead is not None:                       # OCR'd printed splash (FT, Times)
             idx = best_match(print_lead.headline, cands, threshold=0.5)
+            if idx is None:                              # OCR may have caught one line of the headline: use more
+                opening = print_lead.paragraphs[0] if print_lead.paragraphs else ""
+                idx = best_match(f"{print_lead.headline} {print_lead.standfirst} {opening}", cands)
             hint = cands.pop(idx) if idx is not None else Story(headline=print_lead.headline)
-            lead = _merge(print_lead, hint)
+            if hint.url:
+                try:
+                    hint = _merge(read_article(self.http, hint.url), hint)
+                except SourceUnavailable:
+                    pass
+            lead = _print_repairs(print_lead, hint)
+            lead = _merge(lead, hint)
             lead.url = lead.url or hint.url
             kind = "print_front"
         else:

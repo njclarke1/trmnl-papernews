@@ -94,6 +94,8 @@ class Builder:
         if config.DEMO_MODE:
             ed = demo.edition(key)
         else:
+            if str(slot.day.weekday()) not in paper.print_days:
+                raise NotPublished(f"{paper.key} does not print on {slot.day:%A}s")
             entry = self._review(slot).get(key)
             if paper.source == "print":
                 ed = self._print_only(slot, paper, entry)
