@@ -35,7 +35,8 @@ FP_STAMP = re.compile(r"/g/(\d{4})/(\d{2})/(\d{2})/[a-z0-9-]+?-(\d{2})(\d{2})(\d
 # masthead band text → paper. Sunday titles are other papers and never match.
 MASTHEADS: list[tuple[str, re.Pattern]] = [
     ("ft", re.compile(r"financial\s*times|\bft\.com\b")),
-    ("times", re.compile(r"(?<!sunday )(?<!york )(?<!financial )\bthe\s*times\b(?! of)|thetimes\.(?:com|co\.uk)")),
+    ("times", re.compile(r"(?<!sunday )(?<!york )(?<!financial )\bthe\s*times\b(?! of)|thetimes\.(?:com|co\.uk)"
+                         r"|(?<!sunday )(?<!york )(?<!financial )\btimes\s*£\d")),      # "“e TIMES £3.20" (3 Nov OCR)
     ("telegraph", re.compile(r"(?<!sunday )\btelegraph\b|telegraph\.co\.uk")),
     ("guardian", re.compile(r"\bthe\s*guardian\b|theguardian\.com")),
     ("i", re.compile(r"inews\.co\.uk")),
@@ -101,31 +102,42 @@ def masthead_key(band_text: str) -> str | None:
     return None
 
 
+TP_WANTED = ("times", "telegraph")          # the papers tomorrowspapers is searched for
+TP_RESCAN_S = 20 * 60
+
+
 def tp_map(http: Http, day: date) -> dict[str, str]:
-    """{paper key: front image URL} for `day` from tomorrowspapers.co.uk, built once and cached."""
-    hit = store.cache_get("tp-map", day.isoformat())
-    if hit is not None:
-        return hit
+    """{paper key: front image URL} for `day` from tomorrowspapers.co.uk. Fronts are posted through the
+    night and morning, so the map is incremental: entries already identified are never fetched again,
+    and the index is looked at again (at most every 20 min) until every wanted paper is found."""
+    import time
+    hit = store.cache_get("tp-map", day.isoformat()) or {}
+    if hit and "found" not in hit:              # older cache shape: just the map
+        hit = {"found": hit, "seen": [], "at": 0}
+    found: dict[str, str] = dict(hit.get("found") or {})
+    seen: list[str] = list(hit.get("seen") or [])
+    if all(k in found for k in TP_WANTED) or (hit and time.time() - hit.get("at", 0) < TP_RESCAN_S):
+        return found
     idx = http.get(TP).text
     entries = [up.urljoin(TP, a["href"]) for a in BeautifulSoup(idx, "lxml").find_all("a", href=True)
                if f"/{day.isoformat()}-" in a["href"]]
-    entries = list(dict.fromkeys(entries))[:TP_SCAN]
-    if not entries:
+    entries = [u for u in dict.fromkeys(entries) if u not in seen][:TP_SCAN]
+    if not entries and not hit:
         return {}                                  # not published yet: no cache, retries look again
-    found: dict[str, str] = {}
     for u in entries:
         try:
             soup = BeautifulSoup(http.get(u).text, "lxml")
             srcs = [i.get("src") or "" for i in soup.find_all("img")]
             img_url = next((s for s in srcs if "/wp-content/uploads/" in s and day.isoformat() in s), "")
             if not img_url:
-                continue
+                continue                           # no image yet: not marked seen, so looked at again
             key = identify(to_image(http.get(img_url, binary=True).content))
         except Exception:                          # one bad entry never spoils the map
             continue
+        seen.append(u)
         if key and key not in found:
             found[key] = img_url
-    store.cache_put("tp-map", day.isoformat(), found)
+    store.cache_put("tp-map", day.isoformat(), {"found": found, "seen": seen, "at": time.time()})
     return found
 
 

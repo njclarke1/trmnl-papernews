@@ -80,6 +80,7 @@ def test_blocked_article_pages_fall_back_to_the_feed():
     ("THE SUNDAY TIMES October 25 2026", None),
     ("FINANCIAL TIMES WEEKEND", "ft"),
     ("The Daily Telegraph Saturday 24 October 2026 telegraph.co.uk", "telegraph"),
+    ("DAILY NEWSPAPER OF THE YEAR “e TIMES £3.20 £2.35 to subscribers", "times"),
     ("The Sunday Telegraph", None),
     ("The New York Times", None),
     ("the guardian Saturday 24 October 2026", "guardian"),
@@ -102,7 +103,36 @@ def test_tomorrowspapers_map_identifies_each_edition(monkeypatch):
     assert m == {"telegraph": "https://www.tomorrowspapers.co.uk/wp-content/uploads/2026/10/2026-10-24-aaa.jpg",
                  "times": "https://www.tomorrowspapers.co.uk/wp-content/uploads/2026/10/2026-10-24-bbb.jpg"}
     n = len(http.calls)
-    assert printfront.tp_map(http, date(2026, 10, 24)) == m and len(http.calls) == n     # cached for the day
+    assert printfront.tp_map(http, date(2026, 10, 24)) == m and len(http.calls) == n     # all found: cached
+
+
+def test_tomorrowspapers_map_picks_up_fronts_posted_later(monkeypatch):
+    """3 Nov: the map was made from the first 11 fronts and cached; the Telegraph never got a look-in."""
+    pages = {"aaa": "times"}
+    idx = lambda: "".join(f'<a href="/2026-11-03-{n}/">x</a>' for n in pages)
+    class H(FakeHttp):
+        def get(self, url, **kw):
+            self.calls.append(url)
+            if url == printfront.TP:
+                return Resp(url, idx())
+            n = url.rstrip("/").rsplit("-", 1)[-1].split(".")[0]
+            if "/wp-content/" in url:
+                return Resp(url, content=n.encode())
+            return Resp(url, f'<img src="https://www.tomorrowspapers.co.uk/wp-content/uploads/2026/11/2026-11-03-{n}.jpg">')
+    monkeypatch.setattr(printfront, "to_image", lambda raw: raw.decode())
+    monkeypatch.setattr(printfront, "identify", lambda name: pages[name])
+    clock_s = [1000.0]
+    monkeypatch.setattr("time.time", lambda: clock_s[0])
+    http = H({})
+    assert printfront.tp_map(http, date(2026, 11, 3)) == {"times": printfront.TP + "wp-content/uploads/2026/11/2026-11-03-aaa.jpg"}
+    pages["bbb"] = "telegraph"
+    n = len(http.calls)
+    printfront.tp_map(http, date(2026, 11, 3))
+    assert len(http.calls) == n                                       # within 20 min: no new requests
+    clock_s[0] += 21 * 60
+    m = printfront.tp_map(http, date(2026, 11, 3))
+    assert m["telegraph"].endswith("-bbb.jpg")
+    assert sum("2026-11-03-aaa" in c for c in http.calls) == 2         # the Times entry was not fetched again
 
 
 def _line(text, y, h, x0=100, conf=95):
