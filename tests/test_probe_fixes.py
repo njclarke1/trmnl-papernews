@@ -6,11 +6,11 @@ import requests
 
 from app import clock, config, store, text
 from app.builder import Builder
-from app.model import Story
+from app.model import Edition, Story
 from app.ocr.splash import Line, Word, front_headlines
 from app.papers import PAPERS
 from app.sources import bbc_papers, papers_review, printfront
-from app.sources.base import Http, page_free_flag
+from app.sources.base import Http, SourceUnavailable, page_free_flag
 from app.sources.papers_review import ReviewEntry
 from app.sources.web import WebAdapter, bigger_thumb
 from conftest import FakeHttp, Resp
@@ -146,6 +146,27 @@ def test_print_only_falls_back_to_the_round_up(monkeypatch):
     monkeypatch.setattr(b, "_review", lambda slot: {"telegraph": entry})
     ed = b.build_one(clock.edition_for(at("2026-10-24 06:01")), "telegraph")
     assert ed.lead.headline == "Labour has cut £2bn from the Army front line" and ed.layout == "briefing"
+
+
+def test_round_up_sentence_alone_is_not_a_page(monkeypatch):
+    """3 Nov: the Telegraph's front was unreadable, so the page was one round-up sentence shown twice
+    (headline and body, with ', the Daily Telegraph says') above an empty 'Top stories' list."""
+    monkeypatch.setattr(printfront, "front", lambda *a, **k: _front(None, []))
+    b = Builder(FakeHttp({}))
+    entry = ReviewEntry("telegraph", 'The home secretary has "watered down" her migration policy, the Daily Telegraph '
+                                     "says. Shabana Mahmood's move comes despite her previous warning.")
+    monkeypatch.setattr(b, "_review", lambda slot: {"telegraph": entry})
+    with pytest.raises(SourceUnavailable):
+        b.build_one(clock.edition_for(at("2026-11-03 06:01")), "telegraph")
+    assert papers_review.headline_from(entry.summary) == 'The home secretary has "watered down" her migration policy'
+
+
+def test_print_only_paper_is_never_carried_from_yesterday(monkeypatch):
+    b = Builder(FakeHttp({}))
+    store.save_edition("2026-11-02-am", Edition("telegraph", "print_front", Story("Yesterday's splash"), []))
+    st = {"attempts": 3}
+    b._carry(clock.edition_for(at("2026-11-03 06:01")), "telegraph", st)
+    assert st["status"] == "missing" and store.load_edition("2026-11-03-am", "telegraph") is None
 
 
 def test_print_only_papers_skip_sundays(monkeypatch):

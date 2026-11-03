@@ -140,10 +140,13 @@ class Builder:
         rail = [Story(headline=h) for h in (f.others if f else [])]
         if f and f.story:
             ed = Edition(paper.key, "print_front", f.story, rail, continued_page=f.continued)
-        elif entry:                                 # OCR failed: the round-up's account of the splash
+        elif entry and rail:                        # splash unreadable, rest of the front read: the round-up's splash
             head = papers_review.as_headline(entry.quoted) or papers_review.headline_from(entry.summary)
-            ed = Edition(paper.key, "print_front", Story(headline=head, standfirst=entry.summary, is_free=False), rail,
+            deck = "" if papers_review.headline_from(entry.summary) == head else entry.summary
+            ed = Edition(paper.key, "print_front", Story(headline=head, standfirst=deck, is_free=False), rail,
                          note="Printed front · splash from the paper reviews")
+        elif entry:                                 # one round-up sentence is not a front page: keep trying, else skip
+            raise SourceUnavailable(f"{paper.key}: printed front not readable; the round-up alone is too thin")
         else:
             raise SourceUnavailable(f"{paper.key}: printed front not readable yet")
         ed.built_at = clock.now().isoformat(timespec="seconds")
@@ -218,6 +221,9 @@ class Builder:
 
     def _carry(self, slot: clock.Slot, key: str, st: dict) -> None:
         prev = store.last_good(key)
+        if prev is None or PAPERS[key].source == "print":     # yesterday's printed front is not today's paper
+            st["status"] = "missing"
+            return
         if prev is None:
             st["status"] = "missing"
             return

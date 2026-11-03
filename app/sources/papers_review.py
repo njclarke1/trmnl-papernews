@@ -78,6 +78,8 @@ def headline_from(summary: str) -> str:
     s = re.sub(r"^(the\s+)?[\w’' ]{1,40}?\b(leads|splashes|opens|reports|says|focuses|carries|runs)\b"
                r"(\s+(with|on|that))?\s+", "", summary.strip(), flags=re.I)
     s = re.split(r"(?<=[.!?])\s", s)[0].rstrip(".")
+    # trailing attribution: "…migration policy, the Daily Telegraph says" → "…migration policy"
+    s = re.sub(r",\s+(the\s+)?[\w’' ]{1,40}?\s+(says|reports|claims|writes|reveals|understands)$", "", s, flags=re.I)
     return (s[:1].upper() + s[1:])[:140] if s else summary[:140]
 
 
