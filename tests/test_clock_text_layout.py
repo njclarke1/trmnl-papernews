@@ -168,3 +168,19 @@ def test_stray_polls_never_make_the_kindle_skip_a_paper(monkeypatch):
     idx = [allp.index(k) for k in seen]
     steps = {(j - i) % len(allp) for i, j in zip(idx, idx[1:])}
     assert steps <= {0, 1} and set(seen) == set(allp)        # never skips; every paper appears
+
+
+# ----------------------------------------------------------------------------- 3 Nov live check
+def test_live_check_3_nov_text_faults():
+    from app import text
+    from app.sources.base import _section
+    assert text.clean("Everything to know about the US midterms as Trump's future hangs in the balance</strong") \
+        == "Everything to know about the US midterms as Trump's future hangs in the balance"
+    assert text.paragraphs_from_blob("First para here.\nShorts\nIt is part of a new system.") == \
+        ["First para here.", "It is part of a new system."]
+    deck = ("The announcement that Shabana Mahmood is U-turning on the Boriswave reforms confirms that this Labour "
+            "government has no intention, if it ever did, to end mass migration. Labour was always just pulling the "
+            "wool over our eyes. They have reverted to form and are throwing open the door. We spend much of our time despairing")
+    assert text.trim_deck(deck).endswith("end mass migration.") and len(text.trim_deck(deck)) <= 200
+    assert text.trim_deck("Short deck.") == "Short deck."
+    assert _section("TheTimesTimes2") == "Times2" and _section("TheTimes") == "" and _section("World") == "World"

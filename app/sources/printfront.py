@@ -189,8 +189,11 @@ def front(http: Http, paper: Paper, day: date, expected_headline: str = "",
     key = f"{paper.key}-{day.isoformat()}-{'checked' if (expected_headline or expected_standfirst) else 'unchecked'}"
     cached = store.cache_get("ocr", key)
     if cached is not None:
-        return Front(story_from(cached["story"]) if cached.get("story") else None,
-                     cached.get("continued"), cached.get("others") or [])
+        st = story_from(cached["story"]) if cached.get("story") else None
+        if st:                                   # repairs added since the result was cached apply too
+            from ..ocr.splash import tidy
+            st.paragraphs = [tidy(p) for p in st.paragraphs]
+        return Front(st, cached.get("continued"), cached.get("others") or [])
     try:
         url = find_image(http, paper, day)
         if not url:

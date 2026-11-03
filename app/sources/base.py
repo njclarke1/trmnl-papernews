@@ -169,7 +169,9 @@ BRAND_SECTIONS = {"thetimes", "thesundaytimes", "times", "news"}
 def _section(v) -> str:
     """articleSection, unless it is just the publication's name (the Times sets "TheTimes")."""
     s = text.clean(_first(v) or "")
-    return "" if re.sub(r"[^a-z]", "", s.lower()) in BRAND_SECTIONS else s
+    if re.sub(r"[^a-z]", "", s.lower()) in BRAND_SECTIONS:
+        return ""
+    return re.sub(r"^The\s*(Sunday\s*)?Times\s*(?=\S)", "", s)          # "TheTimesTimes2" → "Times2"
 
 
 def read_article(http: Http, url: str, max_age_h: float = 6) -> Story:

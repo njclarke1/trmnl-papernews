@@ -20,6 +20,7 @@ _SENT = re.compile(r"(?<=[.!?’”\"])\s+(?=[A-Z‘“\"0-9£€$])")
 def clean(s: str | None) -> str:
     s = html.unescape(s or "")
     s = re.sub(r"<[^>]+>", " ", s)
+    s = re.sub(r"</?[a-zA-Z][a-zA-Z0-9]*\s*$", "", s)          # a tag cut off by the feed ("…balance</strong")
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -75,7 +76,30 @@ def paragraphs_from_blob(text: str) -> list[str]:
     """Split extracted article text into paragraphs (newline-separated or one blob), dropping
     page furniture the extractor lets through (BBC "Published", Independent membership prompts)."""
     parts = [clean(p) for p in re.split(r"\n\s*\n|\n", text or "")]
-    return [p for p in parts if len(p) > 1 and not BOILERPLATE.match(p)]
+    return [p for p in parts if len(p) > 1 and not BOILERPLATE.match(p) and not _furniture(p)]
+
+
+def _furniture(p: str) -> bool:
+    """A one- or two-word line with no sentence punctuation is a page label ("Shorts"), not a paragraph."""
+    return len(p.split()) <= 2 and not re.search(r"[.!?…:”\"’]$", p)
+
+
+def trim_deck(s: str, limit: int = 200) -> str:
+    """A standfirst, not the article's opening: whole sentences up to `limit` characters. Some sites put
+    the first paragraph, cut mid-sentence, in their description (3 Nov: the Spectator)."""
+    s = clean(s)
+    if len(s) <= limit:
+        return s
+    sents = re.split(r"(?<=[.!?…])\s+(?=[A-Z“\"‘'])", s)
+    out = ""
+    for x in sents:
+        if len(out) + len(x) + 1 > limit:
+            break
+        out = f"{out} {x}".strip()
+    if out:
+        return out
+    words = s[:limit].rsplit(" ", 1)[0].rstrip(",;:–—-")
+    return words + "…"
 
 
 def plain_words(text: str) -> int:

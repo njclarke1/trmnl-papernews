@@ -60,7 +60,7 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
             "kind": kicker_kind(ed.kind),
             "headline": text.display(lead_headline),
             "lines": text.headline_lines(lead_headline),
-            "deck": "" if para_from_deck else text.display(lead.standfirst),
+            "deck": "" if para_from_deck else text.display(text.trim_deck(lead.standfirst)),
             # a deck printed in capitals (NYT banks: "CITING SIMILAR NAMES") is set roman and spaced, not italic
             "deck_caps": sum(c.isupper() for c in lead.standfirst) > 0.8 * max(1, sum(c.isalpha() for c in lead.standfirst)),
             "byline": html.escape(text.clean(lead.byline)),
