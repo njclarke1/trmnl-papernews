@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from . import clock, config, images, layout, store, weather
 from .model import Edition, Story
 from .papers import PAPERS
-from .sources import bbc_papers, demo, papers_review, printfront
+from .sources import bbc_papers, demo, gnews, papers_review, printfront
 from .sources.base import Http, NotPublished, ShapeError, SourceUnavailable
 from .sources.guardian import GuardianAdapter
 from .sources.nyt import NytAdapter
@@ -137,18 +137,36 @@ class Builder:
                              expected_standfirst=entry.summary if entry else "")
         rail = [Story(headline=h) for h in (f.others if f else [])]
         if f and f.story:
-            ed = Edition(paper.key, "print_front", f.story, rail, continued_page=f.continued)
+            on_front = len(rail)
+            if on_front < 3:                            # few headlines read off the front: top up from Google News
+                seen = {s.headline.lower() for s in rail} | {f.story.headline.lower()}
+                rail += [s for s in self._gnews(paper) if s.headline.lower() not in seen][:5 - on_front]
+            ed = Edition(paper.key, "print_front", f.story, rail, continued_page=f.continued,
+                         rail_front=min(on_front, 5) if len(rail) > on_front else -1)
         elif entry and rail:                        # splash unreadable, rest of the front read: the round-up's splash
             head = papers_review.as_headline(entry.quoted) or papers_review.headline_from(entry.summary)
             deck = "" if papers_review.headline_from(entry.summary) == head else entry.summary
             ed = Edition(paper.key, "print_front", Story(headline=head, standfirst=deck, is_free=False), rail,
                          note="Printed front · splash from the paper reviews")
-        elif entry:                                 # one round-up sentence is not a front page: keep trying, else skip
-            raise SourceUnavailable(f"{paper.key}: printed front not readable; the round-up alone is too thin")
-        else:
+        else:                                       # no front yet: Google News headlines stand in while we keep looking
+            latest = self._gnews_edition(paper)
+            if slot.kind == "pm" and latest:            # evening with no morning front: the headlines are the edition
+                return latest
+            if latest:
+                store.cache_put("standin", f"{paper.key}-{slot.id}", latest.to_dict())
             raise SourceUnavailable(f"{paper.key}: printed front not readable yet")
         ed.built_at = clock.now().isoformat(timespec="seconds")
         return ed
+
+    def _gnews(self, paper) -> list[Story]:
+        return gnews.headlines(self.http, paper.gnews, paper.key) if paper.gnews else []
+
+    def _gnews_edition(self, paper) -> Edition | None:
+        heads = self._gnews(paper)
+        if len(heads) < 4:
+            return None
+        return Edition(paper.key, "latest", heads[0], heads[1:6], note="Latest headlines · via Google News",
+                       built_at=clock.now().isoformat(timespec="seconds"), rail_front=0)
 
     def build_image(self, ed: Edition) -> str:
         return images.cached_photo(ed.lead.image_url, self._raw, IMAGE_SIZE.get(ed.layout, "wide")) or ""
@@ -262,10 +280,13 @@ class Builder:
         return None
 
     @staticmethod
-    def _stand_in(key: str):
-        """The copy shown while a paper's edition is being built. A print-only paper has none: its last
-        good copy is an earlier day's front (or this morning's thin round-up page, 3 Nov), not today's."""
-        return None if key in PAPERS and PAPERS[key].source == "print" else store.last_good(key)
+    def _stand_in(key: str, slot: clock.Slot):
+        """The copy shown while a paper's edition is being built. A print-only paper's last good copy is an
+        earlier day's front, so it shows only this slot's Google News headlines, if any (else nothing)."""
+        if key in PAPERS and PAPERS[key].source == "print":
+            d = store.cache_get("standin", f"{key}-{slot.id}")
+            return Edition.from_dict(d) if d else None
+        return store.last_good(key)
 
     def current(self, at: datetime | None = None, paper: str | None = None):
         """(slot, edition, preparing) for the paper to show now; falls back to the last good copy."""
@@ -274,14 +295,14 @@ class Builder:
         state = store.load_state(slot.id)
         available = [k for k in dict.fromkeys(config.ROTATION)
                      if state.get(k, {}).get("status") != "not_published"
-                     and (store.load_edition(slot.id, k) or self._stand_in(k))]
+                     and (store.load_edition(slot.id, k) or self._stand_in(k, slot))]
         key = paper or self.next_paper(at, available)
         if key is None:
             return slot, None, True
         ed = store.load_edition(slot.id, key)
         preparing = False
         if ed is None:
-            ed = self._stand_in(key)
+            ed = self._stand_in(key, slot)
             preparing = state.get(key, {}).get("status") in (None, "pending", "failed")
         return slot, ed, preparing
 

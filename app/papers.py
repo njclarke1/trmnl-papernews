@@ -22,6 +22,7 @@ class Paper:
     front_finder: str = "frontpages"   # frontpages | tomorrowspapers | nytpdf
     print_days: str = "0123456"    # weekdays (Mon=0) the paper prints; print-only papers skip the rest
     review_names: tuple = ()       # how PA's "What the papers say" names the paper
+    gnews: tuple = ()              # Google News RSS queries for headlines when the site refuses us
     note_web: str = ""
     note_print: str = ""
 
@@ -66,6 +67,7 @@ PAPERS: dict[str, Paper] = {p.key: p for p in [
           home="https://www.telegraph.co.uk",
           print_front=True, front_finder="tomorrowspapers", print_days="012345",
           review_names=("The Daily Telegraph", "The Telegraph", "Telegraph"),
+          gnews=("site:telegraph.co.uk/news when:1d", "site:telegraph.co.uk when:1d"),
           note_web="Printed front page · text by OCR", note_print="Printed front page · text by OCR"),
     # The New York Times (added 21 Oct 2026): editors' order from the Top Stories API (free key);
     # morning body text by OCR of the NYT's own printed front-page PDF (high resolution).
