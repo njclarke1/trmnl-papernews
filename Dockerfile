@@ -10,7 +10,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
-COPY plugin ./plugin
 
 # OCR runs at low priority on one core, so LaraPaper's renders (and the Kindle's fetches) stay fast
 ENV DATA_DIR=/data PYTHONUNBUFFERED=1 OMP_THREAD_LIMIT=1 TESSERACT_CMD=/usr/local/bin/tesseract-nice

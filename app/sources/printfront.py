@@ -13,6 +13,7 @@ otherwise no splash (summary/briefing layout, or the round-up's headline for pri
 from __future__ import annotations
 
 import io
+import logging
 import re
 import urllib.parse as up
 from dataclasses import dataclass, field
@@ -26,6 +27,7 @@ from ..model import Story, story_from
 from ..papers import PAPERS, Paper
 from .base import Http, SourceUnavailable
 
+log = logging.getLogger("frontpage")
 MIN_WIDTH = 1000
 PDF_SCALE = 200 / 72                       # render PDFs at 200 dpi (a broadsheet page ≈ 2,400 px wide)
 TP = "https://www.tomorrowspapers.co.uk/"
@@ -132,7 +134,8 @@ def tp_map(http: Http, day: date) -> dict[str, str]:
             if not img_url:
                 continue                           # no image yet: not marked seen, so looked at again
             key = identify(to_image(http.get(img_url, binary=True).content))
-        except Exception:                          # one bad entry never spoils the map
+        except Exception as e:                     # one bad entry never spoils the map
+            log.warning("tomorrowspapers %s: %s: %s", u, type(e).__name__, e)
             continue
         seen.append(u)
         if key and key not in found:
@@ -212,8 +215,8 @@ def front(http: Http, paper: Paper, day: date, expected_headline: str = "",
                            expected_standfirst=expected_standfirst, lines=lines)
         others = front_headlines(lines, splash=r.headline or expected_headline, paper_name=paper.name) \
             if paper.source == "print" else []
-    except Exception as e:                   # any decode/OCR failure ⇒ no splash, never a failed paper
-        store.cache_put("ocr", key, {"story": None, "why": f"{type(e).__name__}: {e}"})
+    except Exception:                        # a crash (OOM, missing binary) is not a verdict: not cached, retried
+        log.exception("OCR of %s front failed", paper.key)
         return Front()
     st = Story(headline=r.headline, standfirst=r.deck, paragraphs=r.paragraphs, byline=r.byline,
                is_free=True) if r.ok else None

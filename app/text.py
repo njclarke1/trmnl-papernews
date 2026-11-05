@@ -101,6 +101,3 @@ def trim_deck(s: str, limit: int = 200) -> str:
     words = s[:limit].rsplit(" ", 1)[0].rstrip(",;:–—-")
     return words + "…"
 
-
-def plain_words(text: str) -> int:
-    return len(clean(text).split())

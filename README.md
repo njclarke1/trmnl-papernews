@@ -22,7 +22,8 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | Guardian | Content API editors' picks. **Morning:** the API's print metadata, i.e. page 1 of today's main book | Content API |
 | BBC, i, New World, Spectator (and Independent if enabled) | Homepage order, found by article URL pattern; RSS order as fallback | The article page a normal visitor gets (JSON-LD `articleBody`, then trafilatura), unless the publisher marks it paid |
 | FT | RSS (`ft.com/rss/home/uk`; the homepage and articles return 403), photos from the feed at 1200 px | **Morning:** OCR of the printed front (frontpages.com, else tomorrowspapers.co.uk). Otherwise headline and standfirst |
-| The Times, The Telegraph | **Print-only.** Both block automated visitors, so the morning printed front (tomorrowspapers.co.uk, identified by OCR of the masthead) is read by OCR: the splash and the other front-page headlines. Held all day; not published on Sundays | The splash's opening, by OCR. If the OCR fails, the round-ups' account of the splash |
+| The Times | Homepage order, fetched as a named reader (`papernews/1.0`; the site refuses a browser identity). Sport links excluded. Not on Sundays (the homepage is then the Sunday Times) | Articles are marked paid: headline, standfirst, byline, photo. **Morning:** OCR of the printed front (tomorrowspapers.co.uk), checked against the homepage article |
+| The Telegraph | **Print-only.** The homepage refuses every identity and its feeds are stale or a syndication pool, so the printed front (tomorrowspapers.co.uk, identified by OCR of the masthead) is read by OCR: the splash and the other front-page headlines. Looked for all morning; held for the evening; never shown from an older copy; not on Sundays | The splash's opening, by OCR. The round-ups' splash only when the rest of the front was read |
 | The New York Times | Top Stories API (editors' home-page order; free key) | **Morning edition:** OCR of the NYT's own printed front-page PDF (up to "Continued on Page A8"), accepted only if it matches a story the Article Search API lists on page A1 (the top stories if that call fails); the rest of A1 fills the rail. Otherwise headline and abstract only |
 
 - **Morning edition:** two independent round-ups name each paper's **printed splash**: PA's "What the papers say" and BBC News's nightly newspaper review. The splash is matched to that paper's web article (`print_front`, labelled "Today's front page"). If both round-ups name a splash and they disagree, neither is used for that paper. The Guardian and the NYT also have the publisher's own print metadata (page 1 / A1).
@@ -37,7 +38,7 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | `/edition` | The paper for the current rotation slot, from the current locked edition |
 | `/edition/<paper>` | A specific paper: `guardian bbc times nyt ft telegraph newworld i spectator` (+ `indy`, `economist` defined but off) |
 | `/demo/<state>.json` | Fixed demo states: one per paper, plus `ft-print`, `long-headline`, `no-image`, `cached` |
-| `/healthz` | Build status per paper for the current edition; also runs a build tick |
+| `/healthz` | Build status per paper for the current edition, and the recent polls (read-only) |
 | `/static/fonts/*`, `/img/*`, `/qr/*` | Fonts, processed photos and QR codes for the template |
 
 ## Settings (Portainer stack env)
@@ -56,10 +57,10 @@ Flask sidecar (`app/`) → JSON → LaraPaper polling plugin (`plugin/full.liqui
 | `WEATHER_LAT/LON/LABEL` | Bristol | One keyless Open-Meteo call an hour |
 | `IMAGE_MODE` | `halftone` | `halftone` (newsprint dots) or `clean` (Floyd–Steinberg 16 greys) |
 | `FT_TINT` | `0` | `1` gives the FT a light grey page, a nod to the pink paper |
-| `OCR_ENABLED` | `1` | Printed-front OCR for the FT, The Times and the NYT |
+| `OCR_ENABLED` | `1` | Printed-front OCR for the FT, The Times, The Telegraph and the NYT |
 | `DEMO_MODE` | `0` | Serve demo editions instead of fetching |
 
-`RETRY_WINDOW_MIN` (60) and `RETRY_EVERY_MIN` (5) control edition retries. `HOST_PACING_S` (2) sets the minimum gap between requests to one site. `MIN_BODY_CHARS` (1500) is the body length needed for the full layout.
+`RETRY_WINDOW_MIN` (60) and `RETRY_EVERY_MIN` (5) control edition retries (print-only papers retry all slot, every 20 min after the first hour). Editions, photos and caches older than 14 days are deleted once a day. `HOST_PACING_S` (2) sets the minimum gap between requests to one site. `MIN_BODY_CHARS` (1500) is the body length needed for the full layout.
 
 ## Deploy
 
@@ -76,7 +77,7 @@ To check a state on the panel without waiting for real news, point a second plug
 
 ```bash
 pip install -r requirements-dev.txt && playwright install chromium   # plus: apt install tesseract-ocr
-pytest -q                                   # 139 tests (~5 min); OCR tests skip without tesseract
+pytest -q                                   # ~175 tests (~6 min); OCR tests skip without tesseract
 python tools/render_harness.py              # every demo state → out/harness/*.png (16 greys) + report.json
 python tools/make_synthetic_fronts.py       # regenerate OCR test fronts
 ```
@@ -85,12 +86,12 @@ The harness renders the **real** `full.liquid` with python-liquid in Chromium at
 
 ## Known limitations (read before trusting it)
 
-- **Unverified against the live sites.** Homepage URL patterns, RSS feeds, JSON-LD shapes, the Guardian API's editors' picks, the PA round-up's format and the front-page image sources all come from desk research and synthetic tests. Phase 1 (`tools/probe_bodies.py` in the project docs) must run on the NAS, and adapters must be adjusted from its saved responses.
+- **Live-checked, not monitored.** The adapters were tuned against probe runs on the NAS (24 Oct–3 Nov 2026). A site redesign shows up as a paper stepping down to its feed or a simpler layout, not as an alert.
 - **OCR is tuned on synthetic fronts.** It reached 94–100% recall with no leakage from other stories on test pages. Real fronts (busier layouts, adverts, wraps, odd splash shapes) will need tuning against real images. Every failure falls back to the summary layout, never to garbled text.
-- **Front-page image sizes are unknown.** Below about 1,000 px wide, OCR is refused. The Times isn't on frontpages.com; it's looked for on tomorrowspapers.co.uk.
+- **Front-page images vary.** Below about 1,000 px wide, OCR is refused (the FT's tomorrowspapers copy is often ~690 px). The Times and the Telegraph are looked for on tomorrowspapers.co.uk only.
 - **Paywalled papers** (FT, Times, and paid Independent/Telegraph pieces) show headline and standfirst only, except the morning OCR of the printed front.
-- **Nameplates are typeset stand-ins.** Real wordmarks (to be cached on the volume, gitignored) are not wired up yet.
-- **Live blogs** are shown as summary layouts; there's no key-events view yet.
+- **Nameplates are typeset stand-ins**, not the papers' wordmarks.
+- **Live blogs** are never flowed as body text: they get the summary layout.
 - **LaraPaper's renderer** must support `initial-letter`, `text-wrap: balance`, `text-align-last`, `document.fonts.load` and fonts loaded from the sidecar. The harness proves Chromium 141 does; LaraPaper's Puppeteer version is unverified.
 - **The PA round-up** is a third-party syndication; if it disappears, morning editions use homepage order (`web_front`).
 

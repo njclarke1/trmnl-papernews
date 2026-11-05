@@ -1,4 +1,4 @@
-"""Generic homepage + article adapter (BBC, FT, Times, Independent, i, Telegraph).
+"""Generic homepage + article adapter (BBC, FT, Times, i, New World, Spectator, Independent).
 
 Order comes from the homepage, found by article URL *pattern* (not CSS selectors, which change with
 every redesign). Fewer than 5 matching links ⇒ fall back to RSS order with kind `latest`.
@@ -159,8 +159,6 @@ class WebAdapter:
             except SourceUnavailable:          # article pages blocked (FT): headline and standfirst from the feed
                 lead = cands[0]
             cands = cands[1:]
-        if lead.live and lead.body_chars < 1500:
-            lead.paragraphs = []                          # live blogs: summary layout, not a wall of updates
         rail = []
         for c in cands[:RAIL_FETCH]:
             try:
@@ -172,4 +170,4 @@ class WebAdapter:
                 rail.append(s)
         if not lead.headline or len(rail) < 3:
             raise ShapeError(f"{self.p.key}: lead missing or only {len(rail)} other stories")
-        return Edition(self.p.key, kind, lead, rail, built_at=utc_now_iso(), rail_front=0 if from_feed else -1)
+        return Edition(self.p.key, kind, lead, rail, built_at=utc_now_iso(), rail_front=0 if from_feed or kind == "print_front" else -1)   # a print lead's rail is the homepage's

@@ -1,7 +1,7 @@
 """The papers: display names, preferred fallback layouts, and how each is sourced.
 
-URL patterns and feeds are best guesses until the Phase 1 probe (tools/probe_bodies.py) has run on
-the NAS; fix them from the probe's saved raw HTML, not from memory.
+URL patterns and feeds were fixed from probe runs on the NAS (tools/probe_bodies.py); change them from a
+fresh probe's saved responses, not from memory.
 """
 from dataclasses import dataclass
 
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Paper:
     key: str
-    name: str                      # typeset nameplate stand-in (real wordmark replaces it when cached)
+    name: str                      # typeset nameplate stand-in
     np: str                        # nameplate style class
     short: str                     # "the FT"
     source: str                    # adapter: guardian | web | nyt | print (printed front only)

@@ -65,3 +65,24 @@ def cache_get(kind: str, key: str) -> dict | None:
 
 def cache_put(kind: str, key: str, data: dict) -> None:
     _write(_root() / "cache" / kind / f"{key}.json", data)
+
+
+PRUNED = ("img", "qr", "cache/article", "cache/ocr", "cache/tp-map", "cache/review")
+
+
+def prune(days: int = 14, now: float | None = None) -> int:
+    """Delete editions, photos, QR codes and caches older than `days` (otherwise /data grows ~5–10 MB a day).
+    Files a last-good copy still points at are kept, so a carried paper keeps its photo. Returns files removed."""
+    import shutil
+    import time
+    cutoff = (now or time.time()) - days * 86400
+    keep = " ".join(p.read_text(errors="ignore") for p in (_root() / "lastgood").glob("*.json"))
+    gone = 0
+    for d in (_root() / "editions").glob("*"):
+        if d.is_dir() and d.stat().st_mtime < cutoff:
+            shutil.rmtree(d, ignore_errors=True); gone += 1
+    for sub in PRUNED:
+        for f in (_root() / sub).glob("*"):
+            if f.is_file() and f.stat().st_mtime < cutoff and f.name not in keep:
+                f.unlink(missing_ok=True); gone += 1
+    return gone

@@ -3,7 +3,7 @@
 GET /edition              the paper for the current rotation slot (current locked edition)
 GET /edition/<paper>      a specific paper
 GET /demo/<state>.json    fixed demo states (per paper, plus stress cases) for checking the panel
-GET /healthz              edition build status (also runs a build tick)
+GET /healthz              edition build status and recent polls (read-only)
 GET /static/fonts/<f>     OFL fonts for the template
 GET /img/<f>, /qr/<f>     processed photos and QR codes from the data volume
 """

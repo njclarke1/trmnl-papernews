@@ -2,12 +2,14 @@
 The only element that changes between editions."""
 from __future__ import annotations
 
+import logging
 import time
 
 import requests
 
 from . import config
 
+log = logging.getLogger("frontpage")
 _CACHE: dict = {"at": 0.0, "data": None}
 
 # WMO weather codes → icon + short text
@@ -32,8 +34,9 @@ def glyph(icon: str, night: bool) -> str:
 
 
 def cached() -> dict | None:
-    """What a request uses: never touches the network (LaraPaper times out polls at 15 s)."""
-    return _CACHE["data"]
+    """What a request uses: never touches the network (LaraPaper times out polls at 15 s).
+    Over 3 hours old it is hidden rather than shown as if current."""
+    return _CACHE["data"] if time.time() - _CACHE["at"] < 3 * 3600 else None
 
 
 def current(session: requests.Session | None = None) -> dict | None:
@@ -55,5 +58,6 @@ def current(session: requests.Session | None = None) -> dict | None:
         data["glyph"] = glyph(icon, data["night"])
         _CACHE.update(at=time.time(), data=data)
         return data
-    except Exception:
-        return _CACHE["data"]          # stale is better than blank; None hides the ear's weather
+    except Exception as e:
+        log.warning("weather refresh failed: %s: %s", type(e).__name__, e)
+        return _CACHE["data"]

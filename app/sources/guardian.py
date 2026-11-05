@@ -50,7 +50,7 @@ def to_story(item: dict) -> Story:
                  standfirst=text.clean(f.get("standfirst") or f.get("trailText")),
                  paragraphs=[p for p in paras if p], byline=text.clean(f.get("byline")),
                  section=item.get("sectionName", ""), url=item.get("webUrl", ""), image_url=img,
-                 caption=cap, credit=credit, is_free=True,
+                 caption=cap, credit=credit, is_free=str(f.get("isPremiumContent", "")).lower() != "true",
                  live="tone/minutebyminute" in tones or item.get("type") == "liveblog")
 
 
@@ -138,6 +138,9 @@ class GuardianAdapter:
                 stories.insert(0, stories.pop(idx))
                 kind = "print_front"          # the round-up identifies the splash; the paper's own headline is shown
         lead = stories[0]
+        if kind == "print_front":                # page 1 unread: splash from the round-ups, rail from the website
+            return Edition("guardian", kind, lead, stories[1:6], note="Splash named by the paper reviews",
+                           built_at=utc_now_iso(), rail_front=0)
         return Edition("guardian", kind, lead, stories[1:6], note="", built_at=utc_now_iso())
 
     def _from_front(self, front: list[dict], review) -> Edition:

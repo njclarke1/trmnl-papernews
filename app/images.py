@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import io
 import math
 import os
@@ -13,6 +14,8 @@ import qrcode
 from PIL import Image, ImageOps
 
 from . import config
+
+log = logging.getLogger("frontpage")
 
 SIZES = {"full": (558, 360), "wide": (1156, 820), "side": (470, 320)}
 
@@ -33,8 +36,9 @@ def _dir(kind: str) -> pathlib.Path:
 def halftone(gray: np.ndarray, cell: int = 5, angle: float = 45, ss: int = 4) -> Image.Image:
     """AM screen: area-true dots, rotated screen, supersampled (the newsprint look)."""
     h, w = gray.shape
-    big = np.asarray(Image.fromarray((gray * 255).astype("uint8")).resize((w * ss, h * ss), Image.BICUBIC), float) / 255
-    yy, xx = np.mgrid[0:h * ss, 0:w * ss].astype(float)
+    big = np.asarray(Image.fromarray((gray * 255).astype("uint8")).resize((w * ss, h * ss), Image.BICUBIC), np.float32) / 255
+    yy, xx = np.ogrid[0:h * ss, 0:w * ss]                 # broadcast grids: ~1/4 of the memory of mgrid + float64
+    yy, xx = yy.astype(np.float32), xx.astype(np.float32)
     a = math.radians(angle)
     c = cell * ss
     u = (xx * math.cos(a) + yy * math.sin(a)) / c
@@ -70,7 +74,8 @@ def cached_photo(url: str, raw_fetch, size_key: str) -> str | None:
     if not path.exists():
         try:
             _save_atomic(process(raw_fetch(url), size), path)
-        except Exception:
+        except Exception as e:
+            log.warning("photo %s failed: %s: %s", url[:80], type(e).__name__, e)
             return None
     return f"{config.PUBLIC_BASE_URL}/img/{name}"
 

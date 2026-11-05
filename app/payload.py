@@ -28,7 +28,7 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
 
     p = PAPERS[ed.paper]
     lead = ed.lead
-    if lead.is_free is False:                    # defence in depth: paid text never reaches the template
+    if lead.is_free is False or lead.live:       # paid text never reaches the template; nor live-blog updates
         lead.paragraphs = []
     lay = ed.layout or "summary"
     if lay == "full" and not lead.paragraphs:    # never an empty body zone
@@ -75,5 +75,5 @@ def build(ed: Edition | None, slot: clock.Slot, *, weather: dict | None = None, 
         "rail_grid": lay == "summary" and len(rail) == 4,
         "rail": [{"n": i + 1, "section": html.escape(s.section or ""), "headline": text.display(text.split_flag(s.headline)[1]),
                   "summary": text.display(s.standfirst) if lay == "bulletin" else ""} for i, s in enumerate(rail)],
-        "foot": {"note": html.escape(ed.note), "tag": tag, "built": ed.built_at[:16].replace("T", " ")},
+        "foot": {"note": html.escape(ed.note), "tag": tag},
     }

@@ -35,6 +35,7 @@ class Builder:
         self._rot_lock = threading.Lock()
         self._rot_pos: int | None = None            # index into config.ROTATION (poll mode)
         self._rot_at = 0.0
+        self._pruned = None                          # day /data was last pruned
         self.served: list[tuple[str, str]] = []      # (time, paper) of recent /edition polls, for /healthz
 
     # ------------------------------------------------------------------ one paper
@@ -127,8 +128,6 @@ class Builder:
 
     def _print_only(self, slot: clock.Slot, paper, entry) -> Edition:
         """Papers that block automated visitors: the morning printed front, held all day."""
-        if str(slot.day.weekday()) not in paper.print_days:
-            raise NotPublished(f"{paper.key} does not print on {slot.day:%A}s")
         if slot.kind == "pm":                       # the evening edition is the morning's front, unchanged
             am = store.load_edition(f"{slot.day.isoformat()}-am", paper.key)
             if am is not None:
@@ -174,6 +173,12 @@ class Builder:
         except Exception:
             log.exception("round-up prefetch failed")
         slot = clock.edition_for(at)
+        if self._pruned != slot.day:                # once a day: keep /data from growing forever
+            try:
+                log.info("pruned %d old files", store.prune(now=at.timestamp()))
+            except OSError:
+                log.exception("prune failed")
+            self._pruned = slot.day
         state = store.load_state(slot.id)
         now_s = at.timestamp()
         for key in dict.fromkeys(config.ROTATION):          # a paper listed twice is still built once
@@ -228,9 +233,6 @@ class Builder:
         if prev is None or PAPERS[key].source == "print":     # yesterday's printed front is not today's paper
             st["status"] = "missing"
             return
-        if prev is None:
-            st["status"] = "missing"
-            return
         prev.stale = True
         prev.data_check = bool(st.get("data_check"))
         store.save_edition(slot.id, prev)
@@ -282,10 +284,6 @@ class Builder:
             ed = self._stand_in(key)
             preparing = state.get(key, {}).get("status") in (None, "pending", "failed")
         return slot, ed, preparing
-
-
-def unique_rotation() -> list[str]:
-    return list(dict.fromkeys(config.ROTATION))
 
 
 def run_background(builder: Builder, every_s: int = 60) -> threading.Thread:

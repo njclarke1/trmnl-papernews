@@ -1,6 +1,6 @@
 """Extract the splash (lead story) from a printed front-page image with Tesseract.
 
-Used only for papers with no free web text (FT, The Times), and only for the morning edition.
+Used for papers with no free web text (FT, The Times, The Telegraph, the NYT's PDF).
 Strategy: Tesseract word boxes → lines → classify lines by glyph height relative to body type →
 tallest headline below the masthead is the splash → deck and byline beneath it → body lines in the
 columns under the headline, read column by column, stopping at "Continued on page N".
@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from PIL import Image, ImageOps
 
 CONTINUED_RE = re.compile(r"continued\s+on\s+(?:page\s+)?([A-Z]?\d{1,2})\b", re.I)
-WORD_RE = re.compile(r"[A-Za-z][A-Za-z'’-]*")
+WORD_RE = re.compile(r"[A-Za-z0-9£][A-Za-z0-9£'’-]*")     # numbers count: "£2bn" ≠ "£3bn" (as in base.tokens)
 STOP = set("a an and are as at be but by for from has have he her his in is it its of on or that the their this "
            "to was were which will with would after over under into than then there they not also been".split())
 
